@@ -3,28 +3,14 @@ import { ArrowRight, Linkedin, Twitter } from "lucide-react";
 
 const team = [
   {
+    name: "David Sandoval",
+    role: "CEO",
+    initials: "DS",
+  },
+  {
     name: "Arman Sajjadian",
-    role: "Co-founder & CEO",
-    bio: "Former real estate analyst with a passion for democratizing property investment through technology. Studied Computer Science and Finance.",
+    role: "CTO",
     initials: "AS",
-  },
-  {
-    name: "Sofia Martinez",
-    role: "Co-founder & CTO",
-    bio: "Blockchain engineer with 6 years of experience building DeFi protocols. Led smart contract development at a top-5 DeFi protocol before ProsperLink.",
-    initials: "SM",
-  },
-  {
-    name: "James Chen",
-    role: "Head of Real Estate",
-    bio: "Licensed real estate broker and investment advisor with $200M+ in transaction experience across multi-family, commercial, and mixed-use assets.",
-    initials: "JC",
-  },
-  {
-    name: "Priya Patel",
-    role: "Head of Legal & Compliance",
-    bio: "Securities attorney specializing in digital assets and fintech regulation. Former counsel at a leading broker-dealer. Expert in Reg D, Reg A+, and Reg CF.",
-    initials: "PP",
   },
 ];
 
@@ -149,7 +135,6 @@ export default function AboutPage() {
                   <div>
                     <h3 className="font-heading text-base font-semibold text-white">{member.name}</h3>
                     <p className="text-accent-gold text-sm mb-3">{member.role}</p>
-                    <p className="text-text-secondary text-sm leading-relaxed">{member.bio}</p>
                     <div className="flex gap-3 mt-3">
                       <Linkedin size={16} className="text-text-secondary hover:text-white cursor-pointer transition-colors" />
                       <Twitter size={16} className="text-text-secondary hover:text-white cursor-pointer transition-colors" />
