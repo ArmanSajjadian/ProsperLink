@@ -24,7 +24,7 @@ export default function LoginPage() {
     });
     setLoading(false);
     if (result?.error) {
-      setError("Invalid credentials. Try demo@prosperlink.com / demo123");
+      setError("Invalid email or password.");
     } else {
       router.push("/dashboard");
     }
@@ -44,14 +44,6 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-surface-card border border-border-card rounded-card p-8">
-          <div className="bg-accent-gold/10 border border-accent-gold/20 rounded-lg p-3 mb-5">
-            <p className="text-accent-gold text-xs font-semibold mb-1">Demo credentials</p>
-            <p className="text-text-secondary text-xs">
-              Email: <span className="text-white">demo@prosperlink.com</span> &nbsp;|&nbsp;
-              Password: <span className="text-white">demo123</span>
-            </p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">

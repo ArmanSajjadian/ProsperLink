@@ -48,6 +48,7 @@ model User {
   email         String?        @unique
   emailVerified DateTime?
   image         String?
+  passwordHash  String?
   walletAddress String?
   role          String         @default("INVESTOR") // INVESTOR | OWNER | BOTH
   kycStatus     String         @default("PENDING")  // PENDING | VERIFIED | REJECTED
