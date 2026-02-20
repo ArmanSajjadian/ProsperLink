@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, TrendingUp, Layers, DollarSign, CheckCircle, ArrowRight } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { X, TrendingUp, Layers, DollarSign, CheckCircle, ArrowRight, AlertCircle } from "lucide-react";
 import { Property } from "@/lib/data";
 import Link from "next/link";
 
@@ -13,8 +15,12 @@ interface InvestModalProps {
 type Step = "amount" | "review" | "success";
 
 export default function InvestModal({ property, onClose }: InvestModalProps) {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState(100);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const tokenCount = Math.floor(amount / property.tokenPrice);
   const actualCost = tokenCount * property.tokenPrice;
@@ -22,6 +28,32 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
   const monthlyIncome = (actualCost * (property.annualYield / 100)) / 12;
 
   const presets = [25, 100, 250, 500];
+
+  async function handleConfirm() {
+    if (!session) {
+      router.push(`/login?callbackUrl=/properties/${property.id}`);
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    const res = await fetch("/api/invest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ propertyId: property.id, tokenCount }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(data.error ?? "Something went wrong.");
+      return;
+    }
+
+    setStep("success");
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-dark/80 backdrop-blur-sm">
@@ -37,15 +69,15 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
           </button>
         </div>
 
-        {/* Demo Notice */}
-        <div className="mx-5 mt-4 bg-accent-gold/10 border border-accent-gold/20 rounded-lg p-3">
-          <p className="text-accent-gold text-xs font-semibold">Simulated Investment (MVP Demo)</p>
-          <p className="text-text-secondary text-xs mt-0.5">No real money is transferred. This demonstrates the token purchase flow.</p>
-        </div>
+        {!session && (
+          <div className="mx-5 mt-4 bg-accent-gold/10 border border-accent-gold/20 rounded-lg p-3">
+            <p className="text-accent-gold text-xs font-semibold">Sign in required to invest</p>
+            <p className="text-text-secondary text-xs mt-0.5">Create a free account to complete your investment.</p>
+          </div>
+        )}
 
         {step === "amount" && (
           <div className="p-5 space-y-5">
-            {/* Amount Input */}
             <div>
               <label className="block text-text-secondary text-xs mb-2">Investment Amount (USD)</label>
               <div className="relative">
@@ -76,7 +108,6 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
               </div>
             </div>
 
-            {/* Calculated Details */}
             <div className="bg-primary-navy rounded-lg p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-1.5 text-text-secondary text-sm">
@@ -116,6 +147,13 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
 
         {step === "review" && (
           <div className="p-5 space-y-5">
+            {error && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                <AlertCircle size={15} className="text-red-400 flex-shrink-0" />
+                <p className="text-red-400 text-xs">{error}</p>
+              </div>
+            )}
+
             <div className="space-y-3">
               <h3 className="text-white font-semibold">Order Summary</h3>
               {[
@@ -139,16 +177,17 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setStep("amount")}
+                onClick={() => { setError(""); setStep("amount"); }}
                 className="flex-1 border border-border-card hover:border-accent-gold/40 text-white text-sm font-medium py-3 rounded-lg transition-colors"
               >
                 Back
               </button>
               <button
-                onClick={() => setStep("success")}
-                className="flex-1 bg-accent-gold hover:bg-accent-gold-hover text-primary-dark font-bold py-3 rounded-lg transition-colors"
+                onClick={handleConfirm}
+                disabled={loading}
+                className="flex-1 bg-accent-gold hover:bg-accent-gold-hover disabled:opacity-60 text-primary-dark font-bold py-3 rounded-lg transition-colors"
               >
-                Confirm Investment
+                {loading ? "Processing..." : session ? "Confirm Investment" : "Sign In to Invest"}
               </button>
             </div>
           </div>
@@ -160,11 +199,12 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
               <CheckCircle size={32} className="text-success" />
             </div>
             <div>
-              <h3 className="font-heading text-xl font-bold text-white">Investment Simulated!</h3>
+              <h3 className="font-heading text-xl font-bold text-white">Investment Confirmed!</h3>
               <p className="text-text-secondary text-sm mt-2">
-                In production, <span className="text-white font-medium">{tokenCount.toLocaleString()} tokens</span> of{" "}
-                <span className="text-white font-medium">{property.name}</span> would be minted to your wallet,
-                earning <span className="text-accent-gold font-medium">${monthlyIncome.toFixed(2)}/month</span>.
+                You now hold{" "}
+                <span className="text-white font-medium">{tokenCount.toLocaleString()} tokens</span> of{" "}
+                <span className="text-white font-medium">{property.name}</span>, earning an estimated{" "}
+                <span className="text-accent-gold font-medium">${monthlyIncome.toFixed(2)}/month</span>.
               </p>
             </div>
             <div className="flex gap-3 pt-2">
