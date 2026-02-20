@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
 
 const navLinks = [
   { href: "/properties", label: "Properties" },
@@ -14,6 +15,8 @@ const navLinks = [
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-primary-dark/95 backdrop-blur-sm border-b border-border-card">
@@ -45,18 +48,53 @@ export default function Navbar() {
 
           {/* Desktop Auth */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-white hover:text-accent-gold transition-colors px-4 py-2"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-semibold bg-accent-gold hover:bg-accent-gold-hover text-primary-dark px-5 py-2 rounded-lg transition-colors"
-            >
-              Get Started
-            </Link>
+            {session ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 text-sm font-medium text-white hover:text-accent-gold transition-colors px-3 py-2 rounded-lg hover:bg-surface-card"
+                >
+                  <div className="w-7 h-7 rounded-full bg-accent-gold/20 border border-accent-gold/30 flex items-center justify-center text-accent-gold text-xs font-bold">
+                    {session.user?.name?.[0]?.toUpperCase() ?? "U"}
+                  </div>
+                  <span className="hidden lg:block">{session.user?.name ?? "Account"}</span>
+                  <ChevronDown size={14} className="text-text-secondary" />
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-surface-card border border-border-card rounded-card shadow-xl py-1">
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-white hover:bg-primary-navy transition-colors"
+                    >
+                      <LayoutDashboard size={15} /> Dashboard
+                    </Link>
+                    <div className="h-px bg-border-card my-1" />
+                    <button
+                      onClick={() => { setUserMenuOpen(false); signOut({ callbackUrl: "/" }); }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-white hover:bg-primary-navy transition-colors"
+                    >
+                      <LogOut size={15} /> Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-white hover:text-accent-gold transition-colors px-4 py-2"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="text-sm font-semibold bg-accent-gold hover:bg-accent-gold-hover text-primary-dark px-5 py-2 rounded-lg transition-colors"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -88,20 +126,40 @@ export default function Navbar() {
             </Link>
           ))}
           <div className="flex flex-col gap-2 pt-2 border-t border-border-card">
-            <Link
-              href="/login"
-              onClick={() => setMobileOpen(false)}
-              className="text-sm font-medium text-white py-2"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              onClick={() => setMobileOpen(false)}
-              className="text-sm font-semibold bg-accent-gold hover:bg-accent-gold-hover text-primary-dark px-4 py-2 rounded-lg text-center transition-colors"
-            >
-              Get Started
-            </Link>
+            {session ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-sm font-medium text-white py-2 flex items-center gap-2"
+                >
+                  <LayoutDashboard size={15} /> Dashboard
+                </Link>
+                <button
+                  onClick={() => { setMobileOpen(false); signOut({ callbackUrl: "/" }); }}
+                  className="text-sm font-medium text-text-secondary py-2 text-left flex items-center gap-2"
+                >
+                  <LogOut size={15} /> Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-sm font-medium text-white py-2"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-sm font-semibold bg-accent-gold hover:bg-accent-gold-hover text-primary-dark px-4 py-2 rounded-lg text-center transition-colors"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

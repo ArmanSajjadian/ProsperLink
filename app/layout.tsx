@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SessionProvider from "@/components/SessionProvider";
 
 export const metadata: Metadata = {
   title: "ProsperLink — Fractional Real Estate Investment",
@@ -17,9 +18,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-primary-dark text-white antialiased">
-        <Navbar />
-        <main className="pt-16">{children}</main>
-        <Footer />
+        <SessionProvider>
+          <Navbar />
+          <main className="pt-16">{children}</main>
+          <Footer />
+        </SessionProvider>
       </body>
     </html>
   );

@@ -1,6 +1,9 @@
+"use client";
+
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import {
   MapPin,
   TrendingUp,
@@ -13,23 +16,11 @@ import {
   DollarSign,
   BarChart3,
 } from "lucide-react";
-import { getProperty, properties, formatCurrency, getFundedPercent } from "@/lib/data";
+import { getProperty, formatCurrency, getFundedPercent } from "@/lib/data";
+import InvestModal from "@/components/InvestModal";
 
 interface Props {
   params: { id: string };
-}
-
-export function generateStaticParams() {
-  return properties.map((p) => ({ id: p.id }));
-}
-
-export function generateMetadata({ params }: Props) {
-  const property = getProperty(params.id);
-  if (!property) return { title: "Property Not Found" };
-  return {
-    title: `${property.name} — ProsperLink`,
-    description: property.description,
-  };
 }
 
 const statusStyles = {
@@ -42,12 +33,15 @@ export default function PropertyDetailPage({ params }: Props) {
   const property = getProperty(params.id);
   if (!property) notFound();
 
+  const [showModal, setShowModal] = useState(false);
   const fundedPercent = getFundedPercent(property);
   const remaining = property.totalValue - property.fundedAmount;
   const status = statusStyles[property.status];
 
   return (
     <div className="min-h-screen bg-primary-dark">
+      {showModal && <InvestModal property={property} onClose={() => setShowModal(false)} />}
+
       {/* Back nav */}
       <div className="bg-primary-navy border-b border-border-card py-4 px-4">
         <div className="max-w-7xl mx-auto">
@@ -172,7 +166,6 @@ export default function PropertyDetailPage({ params }: Props) {
           {/* Right: Investment Panel */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4">
-              {/* Funding Progress Card */}
               <div className="bg-surface-card border border-border-card rounded-card p-6">
                 <h3 className="font-heading text-lg font-semibold text-white mb-5">Investment Summary</h3>
 
@@ -184,7 +177,7 @@ export default function PropertyDetailPage({ params }: Props) {
                   </div>
                   <div className="progress-bar h-3">
                     <div
-                      className="progress-fill h-3"
+                      className={`progress-fill h-3 ${property.status === "ACTIVE" || property.status === "FUNDED" ? "bg-success" : ""}`}
                       style={{ width: `${fundedPercent}%` }}
                     />
                   </div>
@@ -217,12 +210,12 @@ export default function PropertyDetailPage({ params }: Props) {
 
                 {/* CTA */}
                 {property.status === "FUNDING" ? (
-                  <Link
-                    href="/signup"
+                  <button
+                    onClick={() => setShowModal(true)}
                     className="block w-full text-center bg-accent-gold hover:bg-accent-gold-hover text-primary-dark font-bold py-3.5 rounded-lg transition-colors"
                   >
                     Invest Now
-                  </Link>
+                  </button>
                 ) : property.status === "ACTIVE" ? (
                   <div>
                     <div className="bg-success/10 border border-success/20 rounded-lg p-3 mb-3 text-center">
@@ -253,7 +246,6 @@ export default function PropertyDetailPage({ params }: Props) {
                 <p className="text-text-secondary text-xs leading-relaxed">
                   This property is held by <span className="text-white">{property.spvDetails.entity}</span>, a{" "}
                   {property.spvDetails.jurisdiction}-registered LLC. Tokens represent equity interests in the SPV.
-                  Investors are protected by the LLC structure, which isolates liability per property.
                 </p>
               </div>
             </div>
