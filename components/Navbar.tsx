@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
+import { Menu, X, LayoutDashboard, Building2, LogOut, ChevronDown } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 const navLinks = [
@@ -67,7 +67,14 @@ export default function Navbar() {
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-white hover:bg-primary-navy transition-colors"
                     >
-                      <LayoutDashboard size={15} /> Dashboard
+                      <LayoutDashboard size={15} /> Investor Dashboard
+                    </Link>
+                    <Link
+                      href="/owner/dashboard"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-white hover:bg-primary-navy transition-colors"
+                    >
+                      <Building2 size={15} /> Owner Portal
                     </Link>
                     <div className="h-px bg-border-card my-1" />
                     <button
@@ -133,7 +140,14 @@ export default function Navbar() {
                   onClick={() => setMobileOpen(false)}
                   className="text-sm font-medium text-white py-2 flex items-center gap-2"
                 >
-                  <LayoutDashboard size={15} /> Dashboard
+                  <LayoutDashboard size={15} /> Investor Dashboard
+                </Link>
+                <Link
+                  href="/owner/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-sm font-medium text-white py-2 flex items-center gap-2"
+                >
+                  <Building2 size={15} /> Owner Portal
                 </Link>
                 <button
                   onClick={() => { setMobileOpen(false); signOut({ callbackUrl: "/" }); }}
