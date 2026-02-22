@@ -154,7 +154,7 @@ export default function OwnerDashboardPage() {
                 />
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={(v: number) => [v, "Inquiries"]}
+                  formatter={(v: number | undefined) => [v ?? 0, "Inquiries"]}
                 />
                 <Line
                   type="monotone"
@@ -195,8 +195,8 @@ export default function OwnerDashboardPage() {
                 />
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={(v: number) => [
-                    `$${v.toLocaleString()}`,
+                  formatter={(v: number | undefined) => [
+                    `$${(v ?? 0).toLocaleString()}`,
                     "Revenue",
                   ]}
                 />
