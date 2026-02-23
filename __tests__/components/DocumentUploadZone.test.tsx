@@ -2,6 +2,13 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import DocumentUploadZone from "@/components/DocumentUploadZone";
 
+function pickFile(container: HTMLElement) {
+  const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+  fireEvent.change(input, {
+    target: { files: [new File(["content"], "test.pdf", { type: "application/pdf" })] },
+  });
+}
+
 describe("DocumentUploadZone", () => {
   it("renders the upload prompt text", () => {
     render(
@@ -37,30 +44,30 @@ describe("DocumentUploadZone", () => {
     expect(select.value).toBe("FINANCIAL");
   });
 
-  it("shows a loading spinner after clicking Browse Files", () => {
+  it("shows a loading spinner after a file is selected", () => {
     vi.useFakeTimers();
-    render(
+    const { container } = render(
       <DocumentUploadZone
         propertyId="harbor-heights"
         category="LEGAL"
         onMockUpload={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /browse files/i }));
+    pickFile(container);
     expect(screen.getByRole("status")).toBeInTheDocument();
     vi.useRealTimers();
   });
 
   it("shows success toast after mock upload completes", async () => {
     vi.useFakeTimers();
-    render(
+    const { container } = render(
       <DocumentUploadZone
         propertyId="harbor-heights"
         category="LEGAL"
         onMockUpload={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /browse files/i }));
+    pickFile(container);
     await act(async () => {
       vi.advanceTimersByTime(2100);
     });
@@ -71,14 +78,14 @@ describe("DocumentUploadZone", () => {
   it("calls onMockUpload callback after simulated upload", async () => {
     vi.useFakeTimers();
     const onMockUpload = vi.fn();
-    render(
+    const { container } = render(
       <DocumentUploadZone
         propertyId="harbor-heights"
         category="LEGAL"
         onMockUpload={onMockUpload}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /browse files/i }));
+    pickFile(container);
     await act(async () => {
       vi.advanceTimersByTime(2100);
     });

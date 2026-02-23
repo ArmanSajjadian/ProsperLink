@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { UploadCloud, CheckCircle } from "lucide-react";
 import type { DocumentCategory } from "@/lib/mockOwner";
 
@@ -25,8 +25,14 @@ export default function DocumentUploadZone({
     useState<DocumentCategory>(initialCategory);
   const [uploading, setUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleBrowse() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files?.length) return;
     setUploading(true);
     setShowSuccess(false);
 
@@ -38,10 +44,19 @@ export default function DocumentUploadZone({
       // Auto-dismiss toast after 4 seconds
       setTimeout(() => setShowSuccess(false), 4000);
     }, 2000);
+
+    e.target.value = ""; // reset so the same file can be re-selected
   }
 
   return (
     <div className="space-y-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.docx,.xlsx,.jpg,.jpeg"
+        className="hidden"
+        onChange={handleFileChange}
+      />
       {/* Category selector */}
       <div>
         <label className="block text-text-secondary text-xs font-medium mb-1.5">
