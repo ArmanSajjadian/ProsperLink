@@ -8,6 +8,7 @@ import {
   Clock,
   XCircle,
   Eye,
+  Download,
   AlertCircle,
   UploadCloud,
 } from "lucide-react";
@@ -90,9 +91,10 @@ function formatFileSize(kb: number): string {
 interface DocumentRowProps {
   document: OwnerDocument;
   onPreview: (doc: OwnerDocument) => void;
+  onDownload: (doc: OwnerDocument) => void;
 }
 
-export default function DocumentRow({ document, onPreview }: DocumentRowProps) {
+export default function DocumentRow({ document, onPreview, onDownload }: DocumentRowProps) {
   const cat = categoryConfig[document.category] ?? categoryConfig.LEGAL;
   const stat = statusConfig[document.status] ?? statusConfig.DRAFT;
   const StatusIcon = stat.icon;
@@ -139,6 +141,13 @@ export default function DocumentRow({ document, onPreview }: DocumentRowProps) {
             title="Preview"
           >
             <Eye size={15} />
+          </button>
+          <button
+            onClick={() => onDownload(document)}
+            className="p-1.5 text-text-secondary hover:text-white transition-colors rounded-md hover:bg-primary-navy"
+            title="Download"
+          >
+            <Download size={15} />
           </button>
           {document.status === "REJECTED" && (
             <button

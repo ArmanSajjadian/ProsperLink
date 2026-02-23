@@ -24,6 +24,7 @@ export interface OwnerDocument {
   uploadedAt: string;
   reviewedAt?: string;
   reviewNote?: string;
+  fileUrl?: string; // blob URL for in-session preview/download; absent for seeded mock docs
 }
 
 export interface FundingMilestone {

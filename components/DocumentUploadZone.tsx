@@ -7,7 +7,7 @@ import type { DocumentCategory } from "@/lib/mockOwner";
 interface DocumentUploadZoneProps {
   propertyId: string;
   category: DocumentCategory;
-  onMockUpload: () => void;
+  onMockUpload: (info: { file: File; objectUrl: string; category: DocumentCategory }) => void;
 }
 
 const categories: { value: DocumentCategory; label: string }[] = [
@@ -33,13 +33,15 @@ export default function DocumentUploadZone({
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return;
+    const file = e.target.files[0];
+    const objectUrl = URL.createObjectURL(file);
     setUploading(true);
     setShowSuccess(false);
 
     setTimeout(() => {
       setUploading(false);
       setShowSuccess(true);
-      onMockUpload();
+      onMockUpload({ file, objectUrl, category: selectedCategory });
 
       // Auto-dismiss toast after 4 seconds
       setTimeout(() => setShowSuccess(false), 4000);

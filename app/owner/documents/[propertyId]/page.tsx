@@ -33,10 +33,11 @@ export default function PropertyDocumentsPage() {
   const propertyId = params.propertyId as string;
 
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
+  const [localDocs, setLocalDocs] = useState<OwnerDocument[]>([]);
 
   // Derived values — computed unconditionally so hooks are never called conditionally
   const property = mockOwnerProperties.find((p) => p.id === propertyId);
-  const allDocs = getOwnerPropertyDocuments(propertyId);
+  const allDocs = [...localDocs, ...getOwnerPropertyDocuments(propertyId)];
 
   const filteredDocs = useMemo(
     () =>
@@ -66,8 +67,41 @@ export default function PropertyDocumentsPage() {
     (d) => d.status === "PENDING_REVIEW"
   ).length;
 
+  function handleMockUpload({ file, objectUrl, category }: { file: File; objectUrl: string; category: DocumentCategory }) {
+    const ext = (file.name.split(".").pop()?.toUpperCase() ?? "PDF") as OwnerDocument["fileType"];
+    setLocalDocs((prev) => [
+      {
+        id: `local-${Date.now()}`,
+        propertyId,
+        fileName: file.name,
+        fileType: ext,
+        fileSizeKb: Math.round(file.size / 1024),
+        category,
+        status: "PENDING_REVIEW",
+        uploadedAt: new Date().toISOString().split("T")[0],
+        fileUrl: objectUrl,
+      },
+      ...prev,
+    ]);
+  }
+
   function handlePreview(doc: OwnerDocument) {
-    alert(`Preview: ${doc.fileName}\n(Full preview coming in a future release.)`);
+    if (doc.fileUrl) {
+      window.open(doc.fileUrl, "_blank");
+    } else {
+      alert(`Preview not available in demo mode for: ${doc.fileName}`);
+    }
+  }
+
+  function handleDownload(doc: OwnerDocument) {
+    if (doc.fileUrl) {
+      const a = document.createElement("a");
+      a.href = doc.fileUrl;
+      a.download = doc.fileName;
+      a.click();
+    } else {
+      alert(`Download not available in demo mode for: ${doc.fileName}`);
+    }
   }
 
   if (!property) {
@@ -170,6 +204,7 @@ export default function PropertyDocumentsPage() {
                 key={doc.id}
                 document={doc}
                 onPreview={handlePreview}
+                onDownload={handleDownload}
               />
             ))}
           </div>
@@ -187,7 +222,7 @@ export default function PropertyDocumentsPage() {
         <DocumentUploadZone
           propertyId={propertyId}
           category="LEGAL"
-          onMockUpload={() => {}}
+          onMockUpload={handleMockUpload}
         />
       </div>
     </div>
