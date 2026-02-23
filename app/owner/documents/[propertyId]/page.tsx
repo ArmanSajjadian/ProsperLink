@@ -37,7 +37,10 @@ export default function PropertyDocumentsPage() {
 
   // Derived values — computed unconditionally so hooks are never called conditionally
   const property = mockOwnerProperties.find((p) => p.id === propertyId);
-  const allDocs = [...localDocs, ...getOwnerPropertyDocuments(propertyId)];
+  const allDocs = useMemo(
+    () => [...localDocs, ...getOwnerPropertyDocuments(propertyId)],
+    [localDocs, propertyId]
+  );
 
   const filteredDocs = useMemo(
     () =>

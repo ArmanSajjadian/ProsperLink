@@ -34,10 +34,15 @@ export default function DocumentsPage() {
     mockOwnerProperties[0]?.id ?? ""
   );
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
+  const [localDocs, setLocalDocs] = useState<OwnerDocument[]>([]);
 
   // Derived values — computed unconditionally so hooks are never called conditionally
-  const propertyDocs = mockDocuments.filter(
-    (d) => d.propertyId === selectedPropertyId
+  const propertyDocs = useMemo(
+    () => [
+      ...localDocs.filter((d) => d.propertyId === selectedPropertyId),
+      ...mockDocuments.filter((d) => d.propertyId === selectedPropertyId),
+    ],
+    [localDocs, selectedPropertyId]
   );
 
   const filteredDocs = useMemo(
@@ -68,8 +73,41 @@ export default function DocumentsPage() {
     { value: "COMPLIANCE", label: "Compliance" },
   ];
 
+  function handleMockUpload({ file, objectUrl, category }: { file: File; objectUrl: string; category: DocumentCategory }) {
+    const ext = (file.name.split(".").pop()?.toUpperCase() ?? "PDF") as OwnerDocument["fileType"];
+    setLocalDocs((prev) => [
+      {
+        id: `local-${Date.now()}`,
+        propertyId: selectedPropertyId,
+        fileName: file.name,
+        fileType: ext,
+        fileSizeKb: Math.round(file.size / 1024),
+        category,
+        status: "PENDING_REVIEW",
+        uploadedAt: new Date().toISOString().split("T")[0],
+        fileUrl: objectUrl,
+      },
+      ...prev,
+    ]);
+  }
+
   function handlePreview(doc: OwnerDocument) {
-    alert(`Preview: ${doc.fileName}\n(Full preview coming in a future release.)`);
+    if (doc.fileUrl) {
+      window.open(doc.fileUrl, "_blank");
+    } else {
+      alert(`Preview not available in demo mode for: ${doc.fileName}`);
+    }
+  }
+
+  function handleDownload(doc: OwnerDocument) {
+    if (doc.fileUrl) {
+      const a = document.createElement("a");
+      a.href = doc.fileUrl;
+      a.download = doc.fileName;
+      a.click();
+    } else {
+      alert(`Download not available in demo mode for: ${doc.fileName}`);
+    }
   }
 
   return (
@@ -193,7 +231,7 @@ export default function DocumentsPage() {
 
           <div className="divide-y divide-border-card">
             {filteredDocs.map((doc) => (
-              <DocumentRow key={doc.id} document={doc} onPreview={handlePreview} />
+              <DocumentRow key={doc.id} document={doc} onPreview={handlePreview} onDownload={handleDownload} />
             ))}
           </div>
         </div>
@@ -207,7 +245,7 @@ export default function DocumentsPage() {
         <DocumentUploadZone
           propertyId={selectedPropertyId}
           category="LEGAL"
-          onMockUpload={() => {}}
+          onMockUpload={handleMockUpload}
         />
       </div>
     </div>
