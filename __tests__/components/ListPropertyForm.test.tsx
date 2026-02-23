@@ -159,4 +159,49 @@ describe("ListPropertyForm", () => {
     expect(multiFamilyBtn.className).toContain("bg-accent-gold");
     expect(residentialBtn.className).not.toContain("bg-accent-gold");
   });
+
+  // ─── Yield tests ────────────────────────────────────────────────────────────
+
+  async function goToStep2(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByPlaceholderText(/harbor heights duplex/i), "My Property");
+    await user.type(screen.getByPlaceholderText(/street address/i), "123 Main St");
+    await user.type(screen.getByPlaceholderText(/city/i), "Tampa");
+    await user.selectOptions(screen.getAllByRole("combobox")[0], "FL");
+    await user.type(screen.getByPlaceholderText(/12345/i), "33602");
+    fireEvent.click(screen.getByRole("button", { name: "Residential" }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => screen.getByText("Financial Details"));
+  }
+
+  it("uses the entered yield when it is lower than the calculated yield", async () => {
+    // calcYield = (($3000 - $500) * 12) / $500000 = 6.00%
+    // entered = 4%  →  lower = 4.00%
+    const user = userEvent.setup();
+    render(<ListPropertyForm />);
+    await goToStep2(user);
+    await user.type(screen.getByPlaceholderText("480000"), "500000");
+    await user.type(screen.getByPlaceholderText("320000"), "400000");
+    await user.type(screen.getByPlaceholderText("3500"), "3000");
+    await user.type(screen.getByPlaceholderText("800"), "500");
+    await user.type(screen.getByPlaceholderText("7.4"), "4");
+    await waitFor(() =>
+      expect(screen.getByText(/lower yield \(4\.00%\)/i)).toBeInTheDocument()
+    );
+  });
+
+  it("uses the calculated yield when it is lower than the entered yield", async () => {
+    // calcYield = (($3000 - $500) * 12) / $500000 = 6.00%
+    // entered = 9%  →  lower = 6.00% (calculated wins)
+    const user = userEvent.setup();
+    render(<ListPropertyForm />);
+    await goToStep2(user);
+    await user.type(screen.getByPlaceholderText("480000"), "500000");
+    await user.type(screen.getByPlaceholderText("320000"), "400000");
+    await user.type(screen.getByPlaceholderText("3500"), "3000");
+    await user.type(screen.getByPlaceholderText("800"), "500");
+    await user.type(screen.getByPlaceholderText("7.4"), "9");
+    await waitFor(() =>
+      expect(screen.getByText(/lower yield \(6\.00%\)/i)).toBeInTheDocument()
+    );
+  });
 });

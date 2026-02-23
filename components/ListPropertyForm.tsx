@@ -258,6 +258,10 @@ export default function ListPropertyForm({
       ? ((netMonthly * 12) / Number(form.totalValue)) * 100
       : 0;
   const yieldDiff = Math.abs(calcYield - Number(form.annualYield));
+  const effectiveYield =
+    calcYield > 0 && Number(form.annualYield) > 0
+      ? Math.min(Number(form.annualYield), calcYield)
+      : Number(form.annualYield);
 
   // ─── Success screen ──────────────────────────────────────────────────────────
 
@@ -531,8 +535,8 @@ export default function ListPropertyForm({
                       <p className="text-yellow-400 text-xs pt-1 flex items-start gap-1.5">
                         <Info size={12} className="mt-0.5 flex-shrink-0" />
                         Your entered yield ({form.annualYield}%) differs from the
-                        calculated yield ({calcYield.toFixed(2)}%). Investors will
-                        see the entered yield.
+                        calculated yield ({calcYield.toFixed(2)}%). The lower yield (
+                        {effectiveYield.toFixed(2)}%) will be shown to investors.
                       </p>
                     )}
                   </>
@@ -763,7 +767,7 @@ export default function ListPropertyForm({
                 rows: [
                   ["Total Value", form.totalValue ? `$${Number(form.totalValue).toLocaleString()}` : "—"],
                   ["Target Raise", form.targetRaise ? `$${Number(form.targetRaise).toLocaleString()}` : "—"],
-                  ["Annual Yield", form.annualYield ? `${form.annualYield}%` : "—"],
+                  ["Annual Yield", effectiveYield > 0 ? `${effectiveYield.toFixed(2)}%` : "—"],
                   ["Token Price", "$1.00"],
                   ["Total Tokens", form.targetRaise ? Number(form.targetRaise).toLocaleString() : "—"],
                 ],
