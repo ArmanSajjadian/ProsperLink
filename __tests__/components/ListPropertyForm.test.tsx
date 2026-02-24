@@ -175,7 +175,7 @@ describe("ListPropertyForm", () => {
 
   it("uses the entered yield when it is lower than the calculated yield", async () => {
     // calcYield = (($3000 - $500) * 12) / $500000 = 6.00%
-    // entered = 3%  →  diff = 3 > 2, warning triggers, lower = 3.00%
+    // entered = 4%  →  lower = 4.00%
     const user = userEvent.setup();
     render(<ListPropertyForm />);
     await goToStep2(user);
@@ -183,9 +183,9 @@ describe("ListPropertyForm", () => {
     await user.type(screen.getByPlaceholderText("320000"), "400000");
     await user.type(screen.getByPlaceholderText("3500"), "3000");
     await user.type(screen.getByPlaceholderText("800"), "500");
-    await user.type(screen.getByPlaceholderText("7.4"), "3");
+    await user.type(screen.getByPlaceholderText("7.4"), "4");
     await waitFor(() =>
-      expect(screen.getByText(/lower yield \(3\.00%\)/i)).toBeInTheDocument()
+      expect(screen.getByText(/lower yield \(4\.00%\)/i)).toBeInTheDocument()
     );
   });
 
