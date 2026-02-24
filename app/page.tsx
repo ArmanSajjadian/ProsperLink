@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Shield, TrendingUp, Wallet, Building2, Users, DollarSign, ChevronRight } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
-import { properties } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
 
 const stats = [
   { label: "Properties Listed", value: "24+" },
@@ -52,8 +52,12 @@ const trustSignals = [
   },
 ];
 
-export default function HomePage() {
-  const featuredProperties = properties.slice(0, 3);
+export default async function HomePage() {
+  const featuredProperties = await prisma.property.findMany({
+    where: { status: { not: "DRAFT" } },
+    orderBy: { annualYield: "desc" },
+    take: 3,
+  });
 
   return (
     <div className="min-h-screen">

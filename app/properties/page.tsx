@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import PropertyCard from "@/components/PropertyCard";
-import { properties, Property } from "@/lib/data";
+import { Property } from "@/lib/data";
 
-type StatusFilter = "ALL" | Property["status"];
+type StatusFilter = "ALL" | "FUNDING" | "FUNDED" | "ACTIVE";
 type TypeFilter = "ALL" | string;
 type SortOption = "yield_desc" | "yield_asc" | "value_desc" | "funded_desc";
 
@@ -26,11 +26,19 @@ const sortOptions: { value: SortOption; label: string }[] = [
 ];
 
 export default function PropertiesPage() {
+  const [properties, setProperties] = useState<Property[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [sort, setSort] = useState<SortOption>("yield_desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/properties")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setProperties(data); })
+      .catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     let result = [...properties];
@@ -40,8 +48,8 @@ export default function PropertiesPage() {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.location.city.toLowerCase().includes(q) ||
-          p.location.state.toLowerCase().includes(q) ||
+          p.city.toLowerCase().includes(q) ||
+          p.state.toLowerCase().includes(q) ||
           p.type.toLowerCase().includes(q)
       );
     }
@@ -70,7 +78,7 @@ export default function PropertiesPage() {
     });
 
     return result;
-  }, [search, statusFilter, typeFilter, sort]);
+  }, [properties, search, statusFilter, typeFilter, sort]);
 
   const hasActiveFilters =
     statusFilter !== "ALL" || typeFilter !== "ALL" || search.trim() !== "";

@@ -7,13 +7,13 @@ interface PropertyCardProps {
   property: Property;
 }
 
-const statusColors: Record<Property["status"], string> = {
+const statusColors: Record<string, string> = {
   FUNDING: "text-accent-gold bg-accent-gold/10",
   FUNDED: "text-success bg-success/10",
   ACTIVE: "text-success bg-success/10",
 };
 
-const statusLabels: Record<Property["status"], string> = {
+const statusLabels: Record<string, string> = {
   FUNDING: "Funding Open",
   FUNDED: "Fully Funded",
   ACTIVE: "Earning",
@@ -28,7 +28,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
         {/* Image */}
         <div className="relative h-52 w-full overflow-hidden">
           <Image
-            src={property.image}
+            src={property.imageUrl}
             alt={property.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -36,8 +36,8 @@ export default function PropertyCard({ property }: PropertyCardProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-surface-card/60 to-transparent" />
           <div className="absolute top-3 left-3">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColors[property.status]}`}>
-              {statusLabels[property.status]}
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColors[property.status] ?? ""}`}>
+              {statusLabels[property.status] ?? property.status}
             </span>
           </div>
           <div className="absolute top-3 right-3">
@@ -54,7 +54,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
           </h3>
           <div className="flex items-center gap-1 text-text-secondary text-sm mb-4">
             <MapPin size={13} className="flex-shrink-0" />
-            <span>{property.location.city}, {property.location.state}</span>
+            <span>{property.city}, {property.state}</span>
           </div>
 
           {/* Stats */}

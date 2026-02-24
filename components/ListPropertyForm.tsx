@@ -243,7 +243,19 @@ export default function ListPropertyForm({
 
   async function handleSubmit() {
     setSubmitting(true);
-    await new Promise((res) => setTimeout(res, 1500));
+    try {
+      const res = await fetch("/api/properties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Failed to create property:", data.error ?? res.statusText);
+      }
+    } catch (err) {
+      console.error("Property submission error:", err);
+    }
     setSubmitting(false);
     setStep("success");
   }

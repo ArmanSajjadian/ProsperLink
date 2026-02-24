@@ -33,6 +33,8 @@ export async function POST(req: Request) {
 
     const purchasePrice = tokenCount * property.tokenPrice;
     const ownershipPercent = (tokenCount / property.totalTokens) * 100;
+    const newFundedAmount = property.fundedAmount + purchasePrice;
+    const nowFullyFunded = newFundedAmount >= property.totalValue;
 
     const [holding] = await prisma.$transaction([
       prisma.tokenHolding.create({
@@ -46,7 +48,10 @@ export async function POST(req: Request) {
       }),
       prisma.property.update({
         where: { id: property.id },
-        data: { fundedAmount: { increment: purchasePrice } },
+        data: {
+          fundedAmount: { increment: purchasePrice },
+          status: nowFullyFunded ? "FUNDED" : property.status,
+        },
       }),
     ]);
 

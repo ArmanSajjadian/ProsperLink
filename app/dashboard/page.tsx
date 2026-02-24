@@ -82,8 +82,9 @@ export default function DashboardPage() {
     }
   }, [status]);
 
-  if (status === "loading" || loading) return <Spinner />;
+  if (status === "loading") return <Spinner />;
   if (!session) redirect("/login");
+  if (loading) return <Spinner />;
 
   const stats = data?.stats;
   const recentPayouts = (data?.transactions ?? []).filter((t) => t.type === "PAYOUT" && t.status === "COMPLETED").slice(0, 4);

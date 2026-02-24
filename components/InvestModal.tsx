@@ -62,7 +62,7 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
         <div className="flex items-center justify-between p-5 border-b border-border-card">
           <div>
             <h2 className="font-heading text-lg font-semibold text-white">Invest in {property.name}</h2>
-            <p className="text-text-secondary text-xs mt-0.5">{property.location.city}, {property.location.state}</p>
+            <p className="text-text-secondary text-xs mt-0.5">{property.city}, {property.state}</p>
           </div>
           <button onClick={onClose} className="text-text-secondary hover:text-white transition-colors">
             <X size={20} />

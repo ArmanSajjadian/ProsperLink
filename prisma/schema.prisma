@@ -54,10 +54,12 @@ model User {
   kycStatus     String         @default("PENDING")  // PENDING | VERIFIED | REJECTED
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  tokenHoldings TokenHolding[]
-  payouts       Payout[]
+  accounts         Account[]
+  sessions         Session[]
+  tokenHoldings    TokenHolding[]
+  payouts          Payout[]
+  ownedProperties  Property[]     @relation("OwnedProperties")
+  documents        Document[]
 }
 
 model Property {
@@ -79,9 +81,17 @@ model Property {
   spvEntity     String
   jurisdiction  String
   contractAddr  String?
+  ownerId       String?
+  highlights    String[]       @default([])
+  bedrooms      Int?
+  bathrooms     Int?
+  sqft          Int?
+  yearBuilt     Int?
   createdAt     DateTime       @default(now())
+  owner         User?          @relation("OwnedProperties", fields: [ownerId], references: [id])
   tokenHoldings TokenHolding[]
   payouts       Payout[]
+  documents     Document[]
 }
 
 model TokenHolding {
@@ -108,4 +118,16 @@ model Payout {
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id])
   property   Property  @relation(fields: [propertyId], references: [id])
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  propertyId String
+  uploaderId String
+  name       String
+  category   String   // FINANCIAL | LEGAL | PROPERTY | COMPLIANCE
+  url        String
+  createdAt  DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id])
+  uploader   User     @relation(fields: [uploaderId], references: [id])
 }

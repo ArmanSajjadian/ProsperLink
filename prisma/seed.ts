@@ -24,6 +24,17 @@ const properties = [
     status: "FUNDING",
     spvEntity: "Lakeside Austin LLC",
     jurisdiction: "Delaware",
+    highlights: [
+      "97% average occupancy rate over 5 years",
+      "Below-market rents with 15% upside potential",
+      "Recently renovated common areas and roof",
+      "Walking distance to tech campuses",
+      "Professional property management in place",
+    ],
+    bedrooms: 48,
+    bathrooms: 48,
+    sqft: 18400,
+    yearBuilt: 2008,
   },
   {
     id: "oakwood-lofts",
@@ -43,6 +54,17 @@ const properties = [
     status: "FUNDED",
     spvEntity: "Oakwood Nashville LLC",
     jurisdiction: "Delaware",
+    highlights: [
+      "100% funded — now generating rental income",
+      "Long-term commercial tenants (5-year leases)",
+      "Located in Nashville's hottest neighborhood",
+      "Luxury finishes commanding top-tier rents",
+      "Monthly payouts distributed to token holders",
+    ],
+    bedrooms: 8,
+    bathrooms: 10,
+    sqft: 12800,
+    yearBuilt: 2019,
   },
   {
     id: "marina-vista",
@@ -62,6 +84,17 @@ const properties = [
     status: "FUNDING",
     spvEntity: "Marina Vista Miami LLC",
     jurisdiction: "Delaware",
+    highlights: [
+      "Panoramic Biscayne Bay views",
+      "High-demand vacation rental market",
+      "30% funded — early investor pricing",
+      "Short-term rental (STR) license secured",
+      "Strong appreciation potential in Miami waterfront",
+    ],
+    bedrooms: 6,
+    bathrooms: 8,
+    sqft: 9600,
+    yearBuilt: 2021,
   },
   {
     id: "summit-retail",
@@ -81,6 +114,15 @@ const properties = [
     status: "FUNDING",
     spvEntity: "Summit Denver LLC",
     jurisdiction: "Delaware",
+    highlights: [
+      "Triple-net (NNN) leases — minimal owner expenses",
+      "National grocery anchor tenant (10-year lease)",
+      "70% funded with strong momentum",
+      "9.1% projected annual yield",
+      "Denver metro one of the fastest-growing US markets",
+    ],
+    sqft: 18000,
+    yearBuilt: 2015,
   },
   {
     id: "riverside-townhomes",
@@ -100,6 +142,17 @@ const properties = [
     status: "ACTIVE",
     spvEntity: "Riverside Charlotte LLC",
     jurisdiction: "Delaware",
+    highlights: [
+      "Fully leased — currently paying monthly income",
+      "Long-term tenants with excellent payment history",
+      "Charlotte is a top-10 fastest-growing US city",
+      "Steps from popular Greenway trail",
+      "Strong appreciation driven by Charlotte's growth",
+    ],
+    bedrooms: 16,
+    bathrooms: 16,
+    sqft: 7200,
+    yearBuilt: 2017,
   },
 ];
 
@@ -108,7 +161,15 @@ async function main() {
   for (const property of properties) {
     await prisma.property.upsert({
       where: { id: property.id },
-      update: { fundedAmount: property.fundedAmount, status: property.status },
+      update: {
+        fundedAmount: property.fundedAmount,
+        status: property.status,
+        highlights: property.highlights ?? [],
+        bedrooms: property.bedrooms ?? null,
+        bathrooms: property.bathrooms ?? null,
+        sqft: property.sqft ?? null,
+        yearBuilt: property.yearBuilt ?? null,
+      },
       create: property,
     });
     console.log(`  ✓ ${property.name}`);

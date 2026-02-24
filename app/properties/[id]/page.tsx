@@ -3,7 +3,7 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, use } from "react";
 import {
   MapPin,
   TrendingUp,
@@ -16,27 +16,47 @@ import {
   DollarSign,
   BarChart3,
 } from "lucide-react";
-import { getProperty, formatCurrency, getFundedPercent } from "@/lib/data";
+import { Property, formatCurrency, getFundedPercent } from "@/lib/data";
 import InvestModal from "@/components/InvestModal";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-const statusStyles = {
+const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
   FUNDING: { bg: "bg-accent-gold/10", text: "text-accent-gold", label: "Funding Open" },
   FUNDED: { bg: "bg-success/10", text: "text-success", label: "Fully Funded" },
   ACTIVE: { bg: "bg-success/10", text: "text-success", label: "Earning Income" },
 };
 
 export default function PropertyDetailPage({ params }: Props) {
-  const property = getProperty(params.id);
-  if (!property) notFound();
-
+  const { id } = use(params);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [notFoundFlag, setNotFoundFlag] = useState(false);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/properties/${id}`)
+      .then((r) => {
+        if (r.status === 404) { setNotFoundFlag(true); return null; }
+        return r.json();
+      })
+      .then((data) => { if (data) setProperty(data); })
+      .catch(() => {});
+  }, [id]);
+
+  if (notFoundFlag) notFound();
+  if (!property) {
+    return (
+      <div className="min-h-screen bg-primary-dark flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   const fundedPercent = getFundedPercent(property);
   const remaining = property.totalValue - property.fundedAmount;
-  const status = statusStyles[property.status];
+  const status = statusStyles[property.status] ?? { bg: "bg-white/10", text: "text-white", label: property.status };
 
   return (
     <div className="min-h-screen bg-primary-dark">
@@ -61,7 +81,7 @@ export default function PropertyDetailPage({ params }: Props) {
             {/* Image */}
             <div className="relative w-full h-80 md:h-[420px] rounded-card overflow-hidden">
               <Image
-                src={property.image}
+                src={property.imageUrl}
                 alt={property.name}
                 fill
                 className="object-cover"
@@ -84,7 +104,7 @@ export default function PropertyDetailPage({ params }: Props) {
               <h1 className="font-heading text-3xl md:text-4xl font-bold text-white mb-2">{property.name}</h1>
               <div className="flex items-center gap-1.5 text-text-secondary">
                 <MapPin size={15} />
-                <span>{property.location.address}, {property.location.city}, {property.location.state}</span>
+                <span>{property.address}, {property.city}, {property.state}</span>
               </div>
             </div>
 
@@ -111,17 +131,19 @@ export default function PropertyDetailPage({ params }: Props) {
             </div>
 
             {/* Highlights */}
-            <div className="bg-surface-card border border-border-card rounded-card p-6">
-              <h2 className="font-heading text-xl font-semibold text-white mb-4">Key Highlights</h2>
-              <ul className="space-y-3">
-                {property.highlights.map((highlight, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <CheckCircle size={16} className="text-success flex-shrink-0 mt-0.5" />
-                    <span className="text-text-secondary text-sm">{highlight}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {property.highlights.length > 0 && (
+              <div className="bg-surface-card border border-border-card rounded-card p-6">
+                <h2 className="font-heading text-xl font-semibold text-white mb-4">Key Highlights</h2>
+                <ul className="space-y-3">
+                  {property.highlights.map((highlight, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <CheckCircle size={16} className="text-success flex-shrink-0 mt-0.5" />
+                      <span className="text-text-secondary text-sm">{highlight}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Property Details */}
             <div className="bg-surface-card border border-border-card rounded-card p-6">
@@ -153,11 +175,11 @@ export default function PropertyDetailPage({ params }: Props) {
                 )}
                 <div>
                   <p className="text-text-secondary text-xs mb-1">SPV Entity</p>
-                  <p className="text-white font-semibold">{property.spvDetails.entity}</p>
+                  <p className="text-white font-semibold">{property.spvEntity}</p>
                 </div>
                 <div>
                   <p className="text-text-secondary text-xs mb-1">Jurisdiction</p>
-                  <p className="text-white font-semibold">{property.spvDetails.jurisdiction}</p>
+                  <p className="text-white font-semibold">{property.jurisdiction}</p>
                 </div>
               </div>
             </div>
@@ -244,8 +266,8 @@ export default function PropertyDetailPage({ params }: Props) {
               <div className="bg-surface-card border border-border-card rounded-card p-5">
                 <h4 className="text-white font-semibold text-sm mb-3">Legal Structure</h4>
                 <p className="text-text-secondary text-xs leading-relaxed">
-                  This property is held by <span className="text-white">{property.spvDetails.entity}</span>, a{" "}
-                  {property.spvDetails.jurisdiction}-registered LLC. Tokens represent equity interests in the SPV.
+                  This property is held by <span className="text-white">{property.spvEntity}</span>, a{" "}
+                  {property.jurisdiction}-registered LLC. Tokens represent equity interests in the SPV.
                 </p>
               </div>
             </div>
