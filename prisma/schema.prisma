@@ -50,6 +50,7 @@ model User {
   image         String?
   passwordHash  String?
   walletAddress String?
+  walletBalance Float          @default(0)
   role          String         @default("INVESTOR") // INVESTOR | OWNER | BOTH
   kycStatus     String         @default("PENDING")  // PENDING | VERIFIED | REJECTED
   createdAt     DateTime       @default(now())

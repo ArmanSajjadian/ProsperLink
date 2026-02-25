@@ -5,19 +5,29 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, TrendingUp, Layers, Building2 } from "lucide-react";
+import { ArrowUpRight, TrendingUp, TrendingDown, Layers, Building2 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import SellModal from "@/components/SellModal";
 
 const PIE_COLORS = ["#D4A843", "#22C55E", "#3B82F6", "#A78BFA", "#F472B6"];
 
 interface Holding {
   id: string; propertyId: string; propertyName: string; propertyCity: string;
   propertyState: string; propertyImage: string; propertyType: string;
-  tokenCount: number; currentValue: number; ownershipPercent: number;
+  tokenCount: number; tokenPrice: number; currentValue: number; ownershipPercent: number;
   annualYield: number; monthlyIncome: number; purchasedAt: string; status: string;
 }
 interface Stats {
   totalValue: number; monthlyIncome: number; propertiesOwned: number;
+}
+
+interface SellTarget {
+  propertyId: string;
+  propertyName: string;
+  propertyCity: string;
+  propertyState: string;
+  tokenPrice: number;
+  totalOwnedTokens: number;
 }
 
 function Spinner() {
@@ -29,13 +39,18 @@ export default function MyPropertiesPage() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sellTarget, setSellTarget] = useState<SellTarget | null>(null);
+
+  function fetchData() {
+    fetch("/api/dashboard")
+      .then((r) => r.json())
+      .then((d) => { setHoldings(d.holdings ?? []); setStats(d.stats ?? null); setLoading(false); })
+      .catch(() => setLoading(false));
+  }
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetch("/api/dashboard")
-        .then((r) => r.json())
-        .then((d) => { setHoldings(d.holdings ?? []); setStats(d.stats ?? null); setLoading(false); })
-        .catch(() => setLoading(false));
+      fetchData();
     }
   }, [status]);
 
@@ -133,9 +148,24 @@ export default function MyPropertiesPage() {
                           <p className="text-text-secondary text-xs">Purchased</p>
                           <p className="text-white text-sm">{holding.purchasedAt}</p>
                         </div>
-                        <Link href={`/properties/${holding.propertyId}`} className="flex items-center gap-1 text-accent-gold text-xs hover:text-accent-gold-hover transition-colors">
-                          View Property <ArrowUpRight size={13} />
-                        </Link>
+                        <div className="flex items-center gap-3">
+                          <Link href={`/properties/${holding.propertyId}`} className="flex items-center gap-1 text-accent-gold text-xs hover:text-accent-gold-hover transition-colors">
+                            View Property <ArrowUpRight size={13} />
+                          </Link>
+                          <button
+                            onClick={() => setSellTarget({
+                              propertyId: holding.propertyId,
+                              propertyName: holding.propertyName,
+                              propertyCity: holding.propertyCity,
+                              propertyState: holding.propertyState,
+                              tokenPrice: holding.tokenPrice,
+                              totalOwnedTokens: holding.tokenCount,
+                            })}
+                            className="flex items-center gap-1 text-red-400 text-xs hover:text-red-300 transition-colors"
+                          >
+                            Sell Tokens <TrendingDown size={13} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -174,6 +204,19 @@ export default function MyPropertiesPage() {
             </div>
           </div>
         </>
+      )}
+
+      {sellTarget && (
+        <SellModal
+          propertyId={sellTarget.propertyId}
+          propertyName={sellTarget.propertyName}
+          propertyCity={sellTarget.propertyCity}
+          propertyState={sellTarget.propertyState}
+          tokenPrice={sellTarget.tokenPrice}
+          totalOwnedTokens={sellTarget.totalOwnedTokens}
+          onSuccess={fetchData}
+          onClose={() => setSellTarget(null)}
+        />
       )}
     </div>
   );

@@ -26,10 +26,6 @@ export async function POST(req: Request) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
-    if (user.role !== "OWNER" && user.role !== "BOTH") {
-      return NextResponse.json({ error: "Only property owners can list properties." }, { status: 403 });
-    }
-
     const body = await req.json();
     const {
       name, description, type, imageUrl, address, city, state,
@@ -62,7 +58,7 @@ export async function POST(req: Request) {
         tokenPrice,
         annualYield: Number(annualYield ?? 0),
         fundedAmount: 0,
-        status: "DRAFT",
+        status: "REVIEW",
         spvEntity: spvEntity ?? "",
         jurisdiction: jurisdiction ?? "",
         ownerId: user.id,
@@ -73,6 +69,11 @@ export async function POST(req: Request) {
         yearBuilt: yearBuilt ? Number(yearBuilt) : null,
       },
     });
+
+    // Upgrade role so the owner portal and owner API work correctly
+    if (user.role === "INVESTOR") {
+      await prisma.user.update({ where: { id: user.id }, data: { role: "BOTH" } });
+    }
 
     return NextResponse.json({ success: true, propertyId: property.id, slug: property.slug }, { status: 201 });
   } catch {

@@ -90,7 +90,7 @@ const US_STATES = [
 ];
 
 const SPV_JURISDICTIONS = [
-  "Delaware","Wyoming","Florida","Texas","Nevada","California","Other",
+  "California","Delaware","Florida","Nevada","Texas","Wyoming","Other",
 ];
 
 const stepLabels = ["Basics", "Financials", "Description", "Legal", "Review"];
@@ -176,6 +176,7 @@ export default function ListPropertyForm({
   const [step, setStep] = useState<FormStep>(initialStep);
   const [form, setForm] = useState<FormState>(initialFormState);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -211,9 +212,13 @@ export default function ListPropertyForm({
   }
 
   function step4Valid() {
+    const equity = Number(form.ownerRetainedEquity);
     return (
       form.spvEntity.trim() !== "" &&
       form.spvJurisdiction !== "" &&
+      form.ownerRetainedEquity !== "" &&
+      equity >= 1 &&
+      equity <= 97 &&
       form.agreedToTerms1 &&
       form.agreedToTerms2
     );
@@ -243,21 +248,23 @@ export default function ListPropertyForm({
 
   async function handleSubmit() {
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) {
+      if (res.ok) {
+        setStep("success");
+      } else {
         const data = await res.json().catch(() => ({}));
-        console.error("Failed to create property:", data.error ?? res.statusText);
+        setSubmitError(data.error ?? "Submission failed. Please try again.");
       }
-    } catch (err) {
-      console.error("Property submission error:", err);
+    } catch {
+      setSubmitError("Network error. Please try again.");
     }
     setSubmitting(false);
-    setStep("success");
   }
 
   // ─── Computed financials (Step 2 preview) ────────────────────────────────────
@@ -716,8 +723,8 @@ export default function ListPropertyForm({
                 </label>
                 <input
                   type="number"
-                  min={0}
-                  max={100}
+                  min={1}
+                  max={97}
                   value={form.ownerRetainedEquity}
                   onChange={(e) => set("ownerRetainedEquity", e.target.value)}
                   placeholder="30"
@@ -726,6 +733,13 @@ export default function ListPropertyForm({
                 <p className="text-text-secondary text-xs mt-1">
                   Percentage of the property you retain (not tokenized)
                 </p>
+                {form.ownerRetainedEquity !== "" &&
+                  (Number(form.ownerRetainedEquity) < 1 || Number(form.ownerRetainedEquity) > 97) && (
+                  <p className="text-yellow-400 text-xs pt-1 flex items-start gap-1.5">
+                    <Info size={12} className="mt-0.5 flex-shrink-0" />
+                    Owner retained equity must be between 1% and 97%.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -844,6 +858,14 @@ export default function ListPropertyForm({
                 live.
               </p>
             </div>
+
+            {/* Submission error */}
+            {submitError && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
+                <Info size={15} className="text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-red-400 text-sm">{submitError}</p>
+              </div>
+            )}
           </div>
         )}
 

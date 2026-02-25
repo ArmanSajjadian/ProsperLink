@@ -94,6 +94,11 @@ export default function PropertiesPage() {
       {/* Header */}
       <div className="bg-primary-navy border-b border-border-card py-12 px-4">
         <div className="max-w-7xl mx-auto">
+          {/* DEV BRANCH INDICATOR — remove when merging to production */}
+          <div className="mb-6 flex items-center gap-2 bg-accent-gold/10 border border-accent-gold/30 rounded-lg px-4 py-2.5 text-sm text-accent-gold font-medium">
+            <span>⚠</span>
+            <span>DEV PREVIEW — development branch (not visible on production)</span>
+          </div>
           <h1 className="font-heading text-4xl font-bold text-white mb-2">Browse Properties</h1>
           <p className="text-text-secondary text-lg">
             {properties.length} tokenized properties — filter by yield, type, and funding status

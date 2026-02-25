@@ -85,7 +85,7 @@ export async function GET() {
   // Transactions: token purchases
   const purchaseTransactions = user.tokenHoldings.map((h) => ({
     id: `buy-${h.id}`,
-    date: h.purchasedAt.toISOString().split("T")[0],
+    date: h.purchasedAt.toISOString(),
     type: "PURCHASE" as const,
     description: `Token Purchase — ${h.property.name} (${h.tokenCount.toLocaleString()} tokens @ $${h.property.tokenPrice.toFixed(2)})`,
     amount: h.purchasePrice,
@@ -93,20 +93,31 @@ export async function GET() {
     sign: "-" as const,
   }));
 
-  // Transactions: payouts
-  const payoutTransactions = user.payouts.map((p) => ({
-    id: `payout-${p.id}`,
-    date: (p.paidAt ?? p.createdAt).toISOString().split("T")[0],
-    type: "PAYOUT" as const,
-    description: `Rental Income — ${p.property.name}`,
-    amount: p.amount,
-    status: p.status as "COMPLETED" | "SCHEDULED",
-    sign: "+" as const,
-  }));
+  // Transactions: payouts + sales
+  const payoutTransactions = user.payouts.map((p) => {
+    const isSale = p.type === "SALE_PROCEEDS";
+    return {
+      id: `payout-${p.id}`,
+      date: (p.paidAt ?? p.createdAt).toISOString(),
+      type: isSale ? ("SALE" as const) : ("PAYOUT" as const),
+      description: isSale
+        ? `Token Sale — ${p.property.name}`
+        : `Rental Income — ${p.property.name}`,
+      amount: p.amount,
+      status: p.status as "COMPLETED" | "SCHEDULED",
+      sign: "+" as const,
+    };
+  });
 
-  const transactions = [...purchaseTransactions, ...payoutTransactions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const TYPE_PRIORITY: Record<string, number> = { SALE: 0, PAYOUT: 1, PURCHASE: 2 };
+  const transactions = [...purchaseTransactions, ...payoutTransactions].sort((a, b) => {
+    const dayA = a.date.slice(0, 10);
+    const dayB = b.date.slice(0, 10);
+    if (dayB !== dayA) return dayB.localeCompare(dayA);
+    const typeDiff = (TYPE_PRIORITY[a.type] ?? 3) - (TYPE_PRIORITY[b.type] ?? 3);
+    if (typeDiff !== 0) return typeDiff;
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
 
   // Earnings chart: last 6 months
   const now = new Date();
@@ -141,6 +152,7 @@ export async function GET() {
       annualProjected,
       propertiesOwned: uniqueProperties,
       totalPayoutsReceived,
+      walletBalance: user.walletBalance,
     },
     earningsChart: earningsChartWithCumulative,
   });

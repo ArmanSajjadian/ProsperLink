@@ -5,6 +5,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     property: {
       findUnique: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock("next-auth", () => ({
 import { getServerSession } from "next-auth";
 import { POST } from "@/app/api/invest/route";
 
-const mockUser = { id: "user-1", name: "Test Investor", email: "investor@test.com" };
+const mockUser = { id: "user-1", name: "Test Investor", email: "investor@test.com", walletBalance: 10000 };
 
 const mockProperty = {
   id: "lakeside-apartments",
@@ -105,6 +106,19 @@ describe("POST /api/invest", () => {
     const res = await POST(makeRequest({ propertyId: "lakeside-apartments", tokenCount: 100 }));
 
     expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when wallet balance is insufficient", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { email: "investor@test.com" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ...mockUser, walletBalance: 0 } as never);
+    vi.mocked(prisma.property.findUnique).mockResolvedValue(mockProperty as never);
+
+    // 100 tokens × $1.25 = $125, but wallet has $0
+    const res = await POST(makeRequest({ propertyId: "lakeside-apartments", tokenCount: 100 }));
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toMatch(/wallet/i);
   });
 
   it("returns 400 when tokenCount exceeds available tokens", async () => {

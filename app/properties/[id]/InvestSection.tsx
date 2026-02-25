@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   TrendingUp,
   DollarSign,
@@ -17,7 +18,24 @@ interface InvestSectionProps {
 }
 
 export default function InvestSection({ property }: InvestSectionProps) {
+  const { data: session } = useSession();
   const [showModal, setShowModal] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  async function handleInvestClick() {
+    if (session) {
+      try {
+        const res = await fetch("/api/wallet");
+        if (res.ok) {
+          const data = await res.json();
+          setWalletBalance(data.walletBalance ?? 0);
+        }
+      } catch {
+        // wallet fetch failed — modal will show, API enforces balance
+      }
+    }
+    setShowModal(true);
+  }
 
   const fundedPercent = getFundedPercent(property);
   const remaining = property.totalValue - property.fundedAmount;
@@ -25,7 +43,7 @@ export default function InvestSection({ property }: InvestSectionProps) {
   return (
     <div className="lg:col-span-1">
       {showModal && (
-        <InvestModal property={property} onClose={() => setShowModal(false)} />
+        <InvestModal property={property} walletBalance={walletBalance} onClose={() => setShowModal(false)} />
       )}
 
       <div className="sticky top-24 space-y-4">
@@ -91,7 +109,7 @@ export default function InvestSection({ property }: InvestSectionProps) {
           {/* CTA */}
           {property.status === "FUNDING" ? (
             <button
-              onClick={() => setShowModal(true)}
+              onClick={handleInvestClick}
               className="block w-full text-center bg-accent-gold hover:bg-accent-gold-hover text-primary-dark font-bold py-3.5 rounded-lg transition-colors"
             >
               Invest Now
@@ -109,6 +127,13 @@ export default function InvestSection({ property }: InvestSectionProps) {
               >
                 Join Waitlist for Next Raise
               </Link>
+            </div>
+          ) : property.status === "REVIEW" ? (
+            <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+              <p className="text-text-secondary font-semibold">Under Review</p>
+              <p className="text-text-secondary text-xs mt-1">
+                This property is under review
+              </p>
             </div>
           ) : (
             <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
