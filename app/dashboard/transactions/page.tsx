@@ -16,6 +16,20 @@ const typeLabels = {
   SALE: { label: "Sale", color: "bg-red-500/10 text-red-400" },
 };
 
+const PAGE_SIZE = 7;
+
+function formatTxDate(isoString: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(isoString));
+}
+
 function Spinner() {
   return <div className="flex justify-center h-64 items-center"><div className="w-8 h-8 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" /></div>;
 }
@@ -26,6 +40,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"ALL" | "PAYOUT" | "PURCHASE" | "SALE">("ALL");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -44,6 +59,9 @@ export default function TransactionsPage() {
     if (search && !tx.description.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const totalInvested = transactions.filter((t) => t.type === "PURCHASE").reduce((s, t) => s + t.amount, 0);
   const totalPayouts = transactions.filter((t) => t.type === "PAYOUT" && t.status === "COMPLETED").reduce((s, t) => s + t.amount, 0);
@@ -78,13 +96,13 @@ export default function TransactionsPage() {
             type="text"
             placeholder="Search transactions..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="w-full bg-surface-card border border-border-card rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-text-secondary focus:outline-none focus:border-accent-gold/50 transition-colors"
           />
         </div>
         <div className="flex gap-2">
           {(["ALL", "PAYOUT", "PURCHASE", "SALE"] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
+            <button key={f} onClick={() => { setFilter(f); setPage(1); }}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 filter === f ? "bg-accent-gold text-primary-dark" : "bg-surface-card border border-border-card text-text-secondary hover:text-white"
               }`}
@@ -97,10 +115,10 @@ export default function TransactionsPage() {
 
       <div className="bg-surface-card border border-border-card rounded-card overflow-hidden">
         <div className="divide-y divide-border-card">
-          {filtered.length === 0 ? (
+          {paginated.length === 0 ? (
             <div className="py-16 text-center text-text-secondary">No transactions found</div>
           ) : (
-            filtered.map((tx) => (
+            paginated.map((tx) => (
               <div key={tx.id} className="flex items-center gap-4 px-5 py-4 hover:bg-primary-navy/50 transition-colors">
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
                   tx.type === "PAYOUT" ? "bg-success/10" : tx.type === "SALE" ? "bg-red-500/10" : "bg-accent-gold/10"
@@ -116,7 +134,7 @@ export default function TransactionsPage() {
                   <p className="text-white text-sm truncate">{tx.description}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${typeLabels[tx.type].color}`}>{typeLabels[tx.type].label}</span>
-                    <span className="text-text-secondary text-xs">{tx.date}</span>
+                    <span className="text-text-secondary text-xs">{formatTxDate(tx.date)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -138,6 +156,28 @@ export default function TransactionsPage() {
           )}
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-4 py-2 text-sm rounded-lg bg-surface-card border border-border-card text-text-secondary hover:text-white disabled:opacity-40 transition-colors"
+          >
+            ← Previous
+          </button>
+          <span className="text-text-secondary text-xs">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-4 py-2 text-sm rounded-lg bg-surface-card border border-border-card text-text-secondary hover:text-white disabled:opacity-40 transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

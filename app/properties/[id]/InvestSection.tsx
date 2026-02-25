@@ -128,6 +128,13 @@ export default function InvestSection({ property }: InvestSectionProps) {
                 Join Waitlist for Next Raise
               </Link>
             </div>
+          ) : property.status === "REVIEW" ? (
+            <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+              <p className="text-text-secondary font-semibold">Under Review</p>
+              <p className="text-text-secondary text-xs mt-1">
+                This property is under review
+              </p>
+            </div>
           ) : (
             <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
               <p className="text-success font-semibold">Fully Funded</p>
