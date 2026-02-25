@@ -1,23 +1,18 @@
-"use client";
-
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect, use } from "react";
 import {
   MapPin,
   TrendingUp,
   Building2,
-  Users,
-  Calendar,
   CheckCircle,
   ArrowLeft,
   Layers,
   DollarSign,
-  BarChart3,
 } from "lucide-react";
-import { Property, formatCurrency, getFundedPercent } from "@/lib/data";
-import InvestModal from "@/components/InvestModal";
+import { Property, formatCurrency } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
+import InvestSection from "./InvestSection";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -25,43 +20,35 @@ interface Props {
 
 const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
   FUNDING: { bg: "bg-accent-gold/10", text: "text-accent-gold", label: "Funding Open" },
-  FUNDED: { bg: "bg-success/10", text: "text-success", label: "Fully Funded" },
-  ACTIVE: { bg: "bg-success/10", text: "text-success", label: "Earning Income" },
+  FUNDED:  { bg: "bg-success/10",     text: "text-success",     label: "Fully Funded" },
+  ACTIVE:  { bg: "bg-success/10",     text: "text-success",     label: "Earning Income" },
 };
 
-export default function PropertyDetailPage({ params }: Props) {
-  const { id } = use(params);
-  const [property, setProperty] = useState<Property | null>(null);
-  const [notFoundFlag, setNotFoundFlag] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+export default async function PropertyDetailPage({ params }: Props) {
+  const { id } = await params;
 
-  useEffect(() => {
-    fetch(`/api/properties/${id}`)
-      .then((r) => {
-        if (r.status === 404) { setNotFoundFlag(true); return null; }
-        return r.json();
-      })
-      .then((data) => { if (data) setProperty(data); })
-      .catch(() => {});
-  }, [id]);
+  const raw = await prisma.property.findFirst({
+    where: { OR: [{ id }, { slug: id }] },
+  });
 
-  if (notFoundFlag) notFound();
-  if (!property) {
-    return (
-      <div className="min-h-screen bg-primary-dark flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (!raw) notFound();
 
-  const fundedPercent = getFundedPercent(property);
-  const remaining = property.totalValue - property.fundedAmount;
-  const status = statusStyles[property.status] ?? { bg: "bg-white/10", text: "text-white", label: property.status };
+  // Serialize Date fields before passing to Client Components as props
+  const property: Property = {
+    ...(raw as unknown as Property),
+    createdAt: raw.createdAt instanceof Date
+      ? raw.createdAt.toISOString()
+      : raw.createdAt,
+  };
+
+  const status = statusStyles[property.status] ?? {
+    bg: "bg-white/10",
+    text: "text-white",
+    label: property.status,
+  };
 
   return (
     <div className="min-h-screen bg-primary-dark">
-      {showModal && <InvestModal property={property} onClose={() => setShowModal(false)} />}
-
       {/* Back nav */}
       <div className="bg-primary-navy border-b border-border-card py-4 px-4">
         <div className="max-w-7xl mx-auto">
@@ -90,7 +77,9 @@ export default function PropertyDetailPage({ params }: Props) {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-primary-dark/60 via-transparent to-transparent" />
               <div className="absolute top-4 left-4 flex gap-2">
-                <span className={`text-sm font-semibold px-3 py-1.5 rounded-full ${status.bg} ${status.text}`}>
+                <span
+                  className={`text-sm font-semibold px-3 py-1.5 rounded-full ${status.bg} ${status.text}`}
+                >
                   {status.label}
                 </span>
                 <span className="text-sm font-medium px-3 py-1.5 rounded-full bg-primary-dark/70 text-text-secondary">
@@ -101,39 +90,59 @@ export default function PropertyDetailPage({ params }: Props) {
 
             {/* Header */}
             <div>
-              <h1 className="font-heading text-3xl md:text-4xl font-bold text-white mb-2">{property.name}</h1>
+              <h1 className="font-heading text-3xl md:text-4xl font-bold text-white mb-2">
+                {property.name}
+              </h1>
               <div className="flex items-center gap-1.5 text-text-secondary">
                 <MapPin size={15} />
-                <span>{property.address}, {property.city}, {property.state}</span>
+                <span>
+                  {property.address}, {property.city}, {property.state}
+                </span>
               </div>
             </div>
 
             {/* Key Financials */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { icon: DollarSign, label: "Token Price", value: `$${property.tokenPrice.toFixed(2)}` },
-                { icon: TrendingUp, label: "Annual Yield", value: `${property.annualYield}%`, gold: true },
-                { icon: Building2, label: "Property Value", value: formatCurrency(property.totalValue) },
-                { icon: Layers, label: "Total Tokens", value: property.totalTokens.toLocaleString() },
+                { icon: DollarSign, label: "Token Price",    value: `$${property.tokenPrice.toFixed(2)}` },
+                { icon: TrendingUp, label: "Annual Yield",   value: `${property.annualYield}%`, gold: true },
+                { icon: Building2,  label: "Property Value", value: formatCurrency(property.totalValue) },
+                { icon: Layers,     label: "Total Tokens",   value: property.totalTokens.toLocaleString() },
               ].map((item) => (
-                <div key={item.label} className="bg-surface-card border border-border-card rounded-card p-4">
-                  <item.icon size={16} className={`mb-2 ${item.gold ? "text-accent-gold" : "text-text-secondary"}`} />
+                <div
+                  key={item.label}
+                  className="bg-surface-card border border-border-card rounded-card p-4"
+                >
+                  <item.icon
+                    size={16}
+                    className={`mb-2 ${item.gold ? "text-accent-gold" : "text-text-secondary"}`}
+                  />
                   <p className="text-text-secondary text-xs mb-1">{item.label}</p>
-                  <p className={`text-lg font-bold ${item.gold ? "text-accent-gold" : "text-white"}`}>{item.value}</p>
+                  <p
+                    className={`text-lg font-bold ${
+                      item.gold ? "text-accent-gold" : "text-white"
+                    }`}
+                  >
+                    {item.value}
+                  </p>
                 </div>
               ))}
             </div>
 
             {/* Description */}
             <div className="bg-surface-card border border-border-card rounded-card p-6">
-              <h2 className="font-heading text-xl font-semibold text-white mb-3">About This Property</h2>
+              <h2 className="font-heading text-xl font-semibold text-white mb-3">
+                About This Property
+              </h2>
               <p className="text-text-secondary leading-relaxed">{property.description}</p>
             </div>
 
             {/* Highlights */}
             {property.highlights.length > 0 && (
               <div className="bg-surface-card border border-border-card rounded-card p-6">
-                <h2 className="font-heading text-xl font-semibold text-white mb-4">Key Highlights</h2>
+                <h2 className="font-heading text-xl font-semibold text-white mb-4">
+                  Key Highlights
+                </h2>
                 <ul className="space-y-3">
                   {property.highlights.map((highlight, i) => (
                     <li key={i} className="flex items-start gap-3">
@@ -147,7 +156,9 @@ export default function PropertyDetailPage({ params }: Props) {
 
             {/* Property Details */}
             <div className="bg-surface-card border border-border-card rounded-card p-6">
-              <h2 className="font-heading text-xl font-semibold text-white mb-4">Property Details</h2>
+              <h2 className="font-heading text-xl font-semibold text-white mb-4">
+                Property Details
+              </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {property.bedrooms && (
                   <div>
@@ -185,93 +196,8 @@ export default function PropertyDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Right: Investment Panel */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-4">
-              <div className="bg-surface-card border border-border-card rounded-card p-6">
-                <h3 className="font-heading text-lg font-semibold text-white mb-5">Investment Summary</h3>
-
-                {/* Progress */}
-                <div className="mb-5">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-text-secondary text-sm">Funded</span>
-                    <span className="text-white font-bold text-lg">{fundedPercent}%</span>
-                  </div>
-                  <div className="progress-bar h-3">
-                    <div
-                      className={`progress-fill h-3 ${property.status === "ACTIVE" || property.status === "FUNDED" ? "bg-success" : ""}`}
-                      style={{ width: `${fundedPercent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-2">
-                    <span className="text-xs text-text-secondary">{formatCurrency(property.fundedAmount)} raised</span>
-                    <span className="text-xs text-text-secondary">{formatCurrency(property.totalValue)} goal</span>
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="space-y-3 mb-6">
-                  {[
-                    { icon: TrendingUp, label: "Annual Yield", value: `${property.annualYield}%`, gold: true },
-                    { icon: DollarSign, label: "Token Price", value: `$${property.tokenPrice.toFixed(2)}` },
-                    { icon: BarChart3, label: "Remaining", value: formatCurrency(remaining) },
-                    { icon: Users, label: "Min. Investment", value: "$25" },
-                    { icon: Calendar, label: "Payout Schedule", value: "Monthly" },
-                  ].map((item) => (
-                    <div key={item.label} className="flex justify-between items-center py-2 border-b border-border-card last:border-0">
-                      <div className="flex items-center gap-2">
-                        <item.icon size={14} className="text-text-secondary" />
-                        <span className="text-text-secondary text-sm">{item.label}</span>
-                      </div>
-                      <span className={`text-sm font-semibold ${item.gold ? "text-accent-gold" : "text-white"}`}>
-                        {item.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* CTA */}
-                {property.status === "FUNDING" ? (
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="block w-full text-center bg-accent-gold hover:bg-accent-gold-hover text-primary-dark font-bold py-3.5 rounded-lg transition-colors"
-                  >
-                    Invest Now
-                  </button>
-                ) : property.status === "ACTIVE" ? (
-                  <div>
-                    <div className="bg-success/10 border border-success/20 rounded-lg p-3 mb-3 text-center">
-                      <p className="text-success text-sm font-medium">Currently generating rental income</p>
-                    </div>
-                    <Link
-                      href="/signup"
-                      className="block w-full text-center border border-accent-gold/40 hover:bg-accent-gold/10 text-accent-gold font-semibold py-3 rounded-lg transition-colors text-sm"
-                    >
-                      Join Waitlist for Next Raise
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
-                    <p className="text-success font-semibold">Fully Funded</p>
-                    <p className="text-text-secondary text-xs mt-1">This property is no longer accepting investments</p>
-                  </div>
-                )}
-
-                <p className="text-text-secondary text-xs text-center mt-3">
-                  Sign up free to invest. KYC verification required.
-                </p>
-              </div>
-
-              {/* SPV Info */}
-              <div className="bg-surface-card border border-border-card rounded-card p-5">
-                <h4 className="text-white font-semibold text-sm mb-3">Legal Structure</h4>
-                <p className="text-text-secondary text-xs leading-relaxed">
-                  This property is held by <span className="text-white">{property.spvEntity}</span>, a{" "}
-                  {property.jurisdiction}-registered LLC. Tokens represent equity interests in the SPV.
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Right: Interactive Investment Panel */}
+          <InvestSection property={property} />
         </div>
       </div>
     </div>
