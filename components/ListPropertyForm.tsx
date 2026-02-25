@@ -176,6 +176,7 @@ export default function ListPropertyForm({
   const [step, setStep] = useState<FormStep>(initialStep);
   const [form, setForm] = useState<FormState>(initialFormState);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -243,21 +244,23 @@ export default function ListPropertyForm({
 
   async function handleSubmit() {
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) {
+      if (res.ok) {
+        setStep("success");
+      } else {
         const data = await res.json().catch(() => ({}));
-        console.error("Failed to create property:", data.error ?? res.statusText);
+        setSubmitError(data.error ?? "Submission failed. Please try again.");
       }
-    } catch (err) {
-      console.error("Property submission error:", err);
+    } catch {
+      setSubmitError("Network error. Please try again.");
     }
     setSubmitting(false);
-    setStep("success");
   }
 
   // ─── Computed financials (Step 2 preview) ────────────────────────────────────
@@ -844,6 +847,14 @@ export default function ListPropertyForm({
                 live.
               </p>
             </div>
+
+            {/* Submission error */}
+            {submitError && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
+                <Info size={15} className="text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-red-400 text-sm">{submitError}</p>
+              </div>
+            )}
           </div>
         )}
 

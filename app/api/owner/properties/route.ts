@@ -13,10 +13,6 @@ export async function GET() {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
-    if (user.role !== "OWNER" && user.role !== "BOTH") {
-      return NextResponse.json({ error: "Only property owners can access this endpoint." }, { status: 403 });
-    }
-
     const properties = await prisma.property.findMany({
       where: { ownerId: user.id },
       orderBy: { createdAt: "desc" },
