@@ -62,7 +62,7 @@ export async function POST(req: Request) {
         tokenPrice,
         annualYield: Number(annualYield ?? 0),
         fundedAmount: 0,
-        status: "DRAFT",
+        status: "REVIEW",
         spvEntity: spvEntity ?? "",
         jurisdiction: jurisdiction ?? "",
         ownerId: user.id,
