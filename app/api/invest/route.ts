@@ -32,6 +32,11 @@ export async function POST(req: Request) {
     }
 
     const purchasePrice = tokenCount * property.tokenPrice;
+
+    if (user.walletBalance < purchasePrice) {
+      return NextResponse.json({ error: "Insufficient wallet balance. Add funds to your wallet to invest." }, { status: 400 });
+    }
+
     const ownershipPercent = (tokenCount / property.totalTokens) * 100;
     const newFundedAmount = property.fundedAmount + purchasePrice;
     const nowFullyFunded = newFundedAmount >= property.totalValue;
@@ -52,6 +57,10 @@ export async function POST(req: Request) {
           fundedAmount: { increment: purchasePrice },
           status: nowFullyFunded ? "FUNDED" : property.status,
         },
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { walletBalance: { decrement: purchasePrice } },
       }),
     ]);
 

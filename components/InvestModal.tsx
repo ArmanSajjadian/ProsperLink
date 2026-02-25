@@ -9,12 +9,13 @@ import Link from "next/link";
 
 interface InvestModalProps {
   property: Property;
+  walletBalance: number;
   onClose: () => void;
 }
 
 type Step = "amount" | "review" | "success";
 
-export default function InvestModal({ property, onClose }: InvestModalProps) {
+export default function InvestModal({ property, walletBalance, onClose }: InvestModalProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const [step, setStep] = useState<Step>("amount");
@@ -26,6 +27,7 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
   const actualCost = tokenCount * property.tokenPrice;
   const ownershipPercent = (tokenCount / property.totalTokens) * 100;
   const monthlyIncome = (actualCost * (property.annualYield / 100)) / 12;
+  const insufficientFunds = session && actualCost > walletBalance;
 
   const presets = [25, 100, 250, 500];
 
@@ -108,6 +110,19 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
               </div>
             </div>
 
+            {session && (
+              <div className={`flex items-center justify-between text-xs px-1 ${insufficientFunds ? "text-red-400" : "text-text-secondary"}`}>
+                <span>Available in wallet</span>
+                <span className="font-semibold">${walletBalance.toFixed(2)}</span>
+              </div>
+            )}
+            {insufficientFunds && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+                <AlertCircle size={13} className="text-red-400 flex-shrink-0" />
+                <p className="text-red-400 text-xs">Insufficient funds — add money to your wallet to invest this amount.</p>
+              </div>
+            )}
+
             <div className="bg-primary-navy rounded-lg p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-1.5 text-text-secondary text-sm">
@@ -137,7 +152,7 @@ export default function InvestModal({ property, onClose }: InvestModalProps) {
 
             <button
               onClick={() => setStep("review")}
-              disabled={tokenCount === 0}
+              disabled={tokenCount === 0 || !!insufficientFunds}
               className="w-full bg-accent-gold hover:bg-accent-gold-hover disabled:opacity-50 text-primary-dark font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               Review Investment <ArrowRight size={16} />

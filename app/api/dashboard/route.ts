@@ -93,16 +93,21 @@ export async function GET() {
     sign: "-" as const,
   }));
 
-  // Transactions: payouts
-  const payoutTransactions = user.payouts.map((p) => ({
-    id: `payout-${p.id}`,
-    date: (p.paidAt ?? p.createdAt).toISOString().split("T")[0],
-    type: "PAYOUT" as const,
-    description: `Rental Income — ${p.property.name}`,
-    amount: p.amount,
-    status: p.status as "COMPLETED" | "SCHEDULED",
-    sign: "+" as const,
-  }));
+  // Transactions: payouts + sales
+  const payoutTransactions = user.payouts.map((p) => {
+    const isSale = p.type === "SALE_PROCEEDS";
+    return {
+      id: `payout-${p.id}`,
+      date: (p.paidAt ?? p.createdAt).toISOString().split("T")[0],
+      type: isSale ? ("SALE" as const) : ("PAYOUT" as const),
+      description: isSale
+        ? `Token Sale — ${p.property.name}`
+        : `Rental Income — ${p.property.name}`,
+      amount: p.amount,
+      status: p.status as "COMPLETED" | "SCHEDULED",
+      sign: "+" as const,
+    };
+  });
 
   const transactions = [...purchaseTransactions, ...payoutTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -141,6 +146,7 @@ export async function GET() {
       annualProjected,
       propertiesOwned: uniqueProperties,
       totalPayoutsReceived,
+      walletBalance: user.walletBalance,
     },
     earningsChart: earningsChartWithCumulative,
   });

@@ -174,6 +174,24 @@ async function main() {
     });
     console.log(`  ✓ ${property.name}`);
   }
+
+  console.log("Seeding demo investor...");
+  // Demo investor with $10,000 wallet balance for development/testing.
+  // Password: "password123" (bcrypt hash below)
+  const demoInvestor = await prisma.user.upsert({
+    where: { email: "investor@demo.com" },
+    update: { walletBalance: 10000 },
+    create: {
+      email: "investor@demo.com",
+      name: "Demo Investor",
+      walletBalance: 10000,
+      passwordHash: "$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi", // "password"
+      role: "INVESTOR",
+      kycStatus: "VERIFIED",
+    },
+  });
+  console.log(`  ✓ ${demoInvestor.email} (walletBalance: $${demoInvestor.walletBalance})`);
+
   console.log("Done.");
 }
 
