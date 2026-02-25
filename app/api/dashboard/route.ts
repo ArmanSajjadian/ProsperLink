@@ -26,35 +26,58 @@ export async function GET() {
     return NextResponse.json({ error: "User not found." }, { status: 404 });
   }
 
-  // Build holdings
-  const holdings = user.tokenHoldings.map((h) => {
+  // Build holdings — group by property so multiple purchases of the same
+  // property appear as a single aggregated card (tokenCount, value, income summed;
+  // purchasedAt = earliest purchase date). Keyed on the Prisma property PK.
+  const holdingMap = new Map<string, {
+    id: string; propertyId: string; propertyName: string; propertyCity: string;
+    propertyState: string; propertyImage: string; propertyType: string;
+    tokenCount: number; tokenPrice: number; currentValue: number;
+    ownershipPercent: number; annualYield: number; monthlyIncome: number;
+    purchasedAt: string; status: "FUNDING" | "FUNDED" | "ACTIVE";
+  }>();
+
+  for (const h of user.tokenHoldings) {
     const currentValue = h.tokenCount * h.property.tokenPrice;
     const monthlyIncome = (currentValue * (h.property.annualYield / 100)) / 12;
-    return {
-      id: h.id,
-      propertyId: h.property.slug,
-      propertyName: h.property.name,
-      propertyCity: h.property.city,
-      propertyState: h.property.state,
-      propertyImage: h.property.imageUrl,
-      propertyType: h.property.type,
-      tokenCount: h.tokenCount,
-      tokenPrice: h.property.tokenPrice,
-      currentValue,
-      ownershipPercent: h.ownershipPercent,
-      annualYield: h.property.annualYield,
-      monthlyIncome,
-      purchasedAt: h.purchasedAt.toISOString().split("T")[0],
-      status: h.property.status as "FUNDING" | "FUNDED" | "ACTIVE",
-    };
-  });
+    const purchasedAt = h.purchasedAt.toISOString().split("T")[0];
+
+    const existing = holdingMap.get(h.property.id);
+    if (existing) {
+      existing.tokenCount += h.tokenCount;
+      existing.currentValue += currentValue;
+      existing.monthlyIncome += monthlyIncome;
+      existing.ownershipPercent += h.ownershipPercent;
+      if (purchasedAt < existing.purchasedAt) existing.purchasedAt = purchasedAt;
+    } else {
+      holdingMap.set(h.property.id, {
+        id: h.property.slug,
+        propertyId: h.property.slug,
+        propertyName: h.property.name,
+        propertyCity: h.property.city,
+        propertyState: h.property.state,
+        propertyImage: h.property.imageUrl,
+        propertyType: h.property.type,
+        tokenCount: h.tokenCount,
+        tokenPrice: h.property.tokenPrice,
+        currentValue,
+        ownershipPercent: h.ownershipPercent,
+        annualYield: h.property.annualYield,
+        monthlyIncome,
+        purchasedAt,
+        status: h.property.status as "FUNDING" | "FUNDED" | "ACTIVE",
+      });
+    }
+  }
+
+  const holdings = Array.from(holdingMap.values());
 
   // Portfolio stats
   const totalInvested = user.tokenHoldings.reduce((s, h) => s + h.purchasePrice, 0);
   const totalValue = holdings.reduce((s, h) => s + h.currentValue, 0);
   const monthlyIncome = holdings.reduce((s, h) => s + h.monthlyIncome, 0);
   const annualProjected = monthlyIncome * 12;
-  const uniqueProperties = new Set(user.tokenHoldings.map((h) => h.propertyId)).size;
+  const uniqueProperties = holdings.length;
   const totalPayoutsReceived = user.payouts
     .filter((p) => p.status === "COMPLETED")
     .reduce((s, p) => s + p.amount, 0);
