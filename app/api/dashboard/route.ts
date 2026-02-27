@@ -109,15 +109,9 @@ export async function GET() {
     };
   });
 
-  const TYPE_PRIORITY: Record<string, number> = { SALE: 0, PAYOUT: 1, PURCHASE: 2 };
-  const transactions = [...purchaseTransactions, ...payoutTransactions].sort((a, b) => {
-    const dayA = a.date.slice(0, 10);
-    const dayB = b.date.slice(0, 10);
-    if (dayB !== dayA) return dayB.localeCompare(dayA);
-    const typeDiff = (TYPE_PRIORITY[a.type] ?? 3) - (TYPE_PRIORITY[b.type] ?? 3);
-    if (typeDiff !== 0) return typeDiff;
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
-  });
+  const transactions = [...purchaseTransactions, ...payoutTransactions].sort((a, b) =>
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
 
   // Earnings chart: last 6 months
   const now = new Date();

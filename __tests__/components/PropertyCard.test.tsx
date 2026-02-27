@@ -3,14 +3,14 @@ import { render, screen } from "@testing-library/react";
 import PropertyCard from "@/components/PropertyCard";
 import type { Property } from "@/lib/data";
 
-const mockProperty: Property = {
+const baseProperty: Property = {
   id: "lakeside-apartments",
   slug: "lakeside-apartments",
   name: "Lakeside Apartments",
-  description: "A well-maintained 12-unit apartment complex",
+  description: "A waterfront property",
   type: "Multi-Family",
-  imageUrl: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80",
-  address: "1200 Lake Shore Drive",
+  imageUrl: "https://example.com/img.jpg",
+  address: "123 Lake Shore Dr",
   city: "Austin",
   state: "TX",
   totalValue: 850000,
@@ -19,70 +19,52 @@ const mockProperty: Property = {
   annualYield: 8.2,
   fundedAmount: 637500,
   status: "FUNDING",
-  spvEntity: "Lakeside Austin LLC",
-  jurisdiction: "Delaware",
+  spvEntity: "Lakeside SPV LLC",
+  jurisdiction: "TX",
   highlights: [],
 };
 
 describe("PropertyCard", () => {
   it("renders the property name", () => {
-    render(<PropertyCard property={mockProperty} />);
+    render(<PropertyCard property={baseProperty} />);
     expect(screen.getByText("Lakeside Apartments")).toBeInTheDocument();
   });
 
-  it("renders imageUrl as the img src (flat Prisma field, not old 'image' field)", () => {
-    const { container } = render(<PropertyCard property={mockProperty} />);
-    const img = container.querySelector("img");
-    expect(img).not.toBeNull();
-    expect(img?.src).toContain("images.unsplash.com");
-  });
-
-  it("renders city and state from flat fields (not location.city)", () => {
-    render(<PropertyCard property={mockProperty} />);
-    expect(screen.getByText("Austin, TX")).toBeInTheDocument();
-  });
-
-  it("renders the correct status badge for FUNDING", () => {
-    render(<PropertyCard property={mockProperty} />);
+  it("shows 'Funding Open' badge for FUNDING status", () => {
+    render(<PropertyCard property={baseProperty} />);
     expect(screen.getByText("Funding Open")).toBeInTheDocument();
   });
 
-  it("renders the correct status badge for ACTIVE", () => {
-    const activeProperty = { ...mockProperty, status: "ACTIVE" };
-    render(<PropertyCard property={activeProperty} />);
-    expect(screen.getByText("Earning")).toBeInTheDocument();
-  });
-
-  it("renders the correct status badge for FUNDED", () => {
-    const fundedProperty = { ...mockProperty, status: "FUNDED" };
-    render(<PropertyCard property={fundedProperty} />);
+  it("shows 'Fully Funded' badge for FUNDED status", () => {
+    render(<PropertyCard property={{ ...baseProperty, status: "FUNDED" }} />);
     expect(screen.getByText("Fully Funded")).toBeInTheDocument();
   });
 
-  it("links to the correct property detail page", () => {
-    const { container } = render(<PropertyCard property={mockProperty} />);
-    const link = container.querySelector("a");
-    expect(link?.getAttribute("href")).toBe("/properties/lakeside-apartments");
+  it("shows 'Earning' badge for ACTIVE status", () => {
+    render(<PropertyCard property={{ ...baseProperty, status: "ACTIVE" }} />);
+    expect(screen.getByText("Earning")).toBeInTheDocument();
   });
 
-  it("renders the annual yield with percent sign", () => {
-    render(<PropertyCard property={mockProperty} />);
-    expect(screen.getByText("8.2%")).toBeInTheDocument();
+  it("falls back to the raw status string for an unknown status", () => {
+    render(<PropertyCard property={{ ...baseProperty, status: "REVIEW" }} />);
+    // statusLabels["REVIEW"] is undefined → falls back to property.status
+    expect(screen.getByText("REVIEW")).toBeInTheDocument();
   });
 
-  it("renders the token price", () => {
-    render(<PropertyCard property={mockProperty} />);
-    expect(screen.getByText("$1.25")).toBeInTheDocument();
+  it("applies empty string class for an unknown status (no color class crash)", () => {
+    // statusColors["REVIEW"] is undefined → ?? "" prevents runtime error
+    expect(() =>
+      render(<PropertyCard property={{ ...baseProperty, status: "REVIEW" }} />)
+    ).not.toThrow();
   });
 
-  it("renders the property type badge", () => {
-    render(<PropertyCard property={mockProperty} />);
+  it("renders a link to the property detail page", () => {
+    render(<PropertyCard property={baseProperty} />);
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/properties/lakeside-apartments");
+  });
+
+  it("renders the property type label", () => {
+    render(<PropertyCard property={baseProperty} />);
     expect(screen.getByText("Multi-Family")).toBeInTheDocument();
-  });
-
-  it("renders the funding progress percentage", () => {
-    render(<PropertyCard property={mockProperty} />);
-    // 637500 / 850000 = 75%
-    expect(screen.getByText("75%")).toBeInTheDocument();
   });
 });

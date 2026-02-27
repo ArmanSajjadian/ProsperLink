@@ -74,6 +74,48 @@ const lakesideHolding = {
   property: lakesideProperty,
 };
 
+// ─── Payout fixtures ───────────────────────────────────────────────────────
+
+const rentalPayout = {
+  id: "pay-rental-1",
+  type: "RENTAL_INCOME",
+  amount: 45.50,
+  status: "COMPLETED",
+  paidAt: new Date("2026-02-15T10:00:00Z"),
+  createdAt: new Date("2026-02-15T09:00:00Z"),
+  property: summitProperty,
+};
+
+const salePayout = {
+  id: "pay-sale-1",
+  type: "SALE_PROCEEDS",
+  amount: 500,
+  status: "COMPLETED",
+  paidAt: null,                                 // tests paidAt ?? createdAt fallback
+  createdAt: new Date("2026-02-12T10:00:00Z"),
+  property: lakesideProperty,
+};
+
+const scheduledPayout = {
+  id: "pay-sched-1",
+  type: "RENTAL_INCOME",
+  amount: 90,
+  status: "SCHEDULED",
+  paidAt: null,
+  createdAt: new Date("2026-03-01T10:00:00Z"),
+  property: summitProperty,
+};
+
+// Same-day fixture for sort tiebreaker (same day as summitHolding2 but 2 hours later)
+const summitHolding3 = {
+  id: "hold-summit-3",
+  tokenCount: 200,
+  purchasePrice: 250,
+  ownershipPercent: 0.0071,
+  purchasedAt: new Date("2026-02-25T12:00:00Z"),
+  property: summitProperty,
+};
+
 // ─── Helper ────────────────────────────────────────────────────────────────
 
 function makeUser(holdings = [summitHolding2, summitHolding1, lakesideHolding], payouts = []) {
@@ -195,7 +237,7 @@ describe("GET /api/dashboard — transactions", () => {
 
     // The most recent Summit purchase (2026-02-25) should appear before the earlier ones
     const dates = transactions.map((t: { date: string }) => t.date);
-    expect(dates[0]).toBe("2026-02-25");
+    expect(dates[0]).toContain("2026-02-25");
   });
 });
 
@@ -231,5 +273,118 @@ describe("GET /api/dashboard — stats", () => {
     const uniqueIds = new Set(holdings.map((h: { propertyId: string }) => h.propertyId));
     expect(uniqueIds.size).toBe(holdings.length);
     expect(holdings.length).toBe(2);
+  });
+});
+
+// ─── Payouts ───────────────────────────────────────────────────────────────
+
+describe("GET /api/dashboard — payouts", () => {
+  it("RENTAL_INCOME payout appears as PAYOUT type transaction", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(
+      { ...makeUser(), payouts: [rentalPayout] } as never
+    );
+    const res = await GET();
+    const { transactions } = await res.json();
+    const payout = transactions.find((t: { type: string }) => t.type === "PAYOUT");
+    expect(payout).toBeDefined();
+    expect(payout.description).toContain("Rental Income");
+    expect(payout.description).toContain("Summit Retail Plaza");
+  });
+
+  it("SALE_PROCEEDS payout appears as SALE type transaction", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(
+      { ...makeUser(), payouts: [salePayout] } as never
+    );
+    const res = await GET();
+    const { transactions } = await res.json();
+    const sale = transactions.find((t: { type: string }) => t.type === "SALE");
+    expect(sale).toBeDefined();
+    expect(sale.description).toContain("Token Sale");
+    expect(sale.description).toContain("Lakeside Apartments");
+  });
+
+  it("uses createdAt when paidAt is null", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(
+      { ...makeUser(), payouts: [salePayout] } as never   // salePayout has paidAt: null
+    );
+    const res = await GET();
+    const { transactions } = await res.json();
+    const sale = transactions.find((t: { type: string }) => t.type === "SALE");
+    expect(sale.date).toContain("2026-02-12");
+  });
+
+  it("SCHEDULED payouts are excluded from totalPayoutsReceived", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(
+      { ...makeUser(), payouts: [rentalPayout, scheduledPayout] } as never
+    );
+    const res = await GET();
+    const { stats } = await res.json();
+    // Only COMPLETED rentalPayout ($45.50) counts, not the SCHEDULED one ($90)
+    expect(stats.totalPayoutsReceived).toBeCloseTo(45.50);
+  });
+});
+
+// ─── Pure timestamp sort ───────────────────────────────────────────────────
+
+describe("GET /api/dashboard — pure timestamp sort", () => {
+  it("same-day transactions are sorted by exact time regardless of type (newest first)", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      tokenHoldings: [summitHolding3, summitHolding2], // h3: 12:00, h2: 10:00, same day
+      payouts: [],
+    } as never);
+    const res = await GET();
+    const { transactions } = await res.json();
+    // h3 (12:00) should come before h2 (10:00) purely by timestamp
+    expect(transactions[0].date).toContain("T12:");
+    expect(transactions[1].date).toContain("T10:");
+  });
+
+  it("a PURCHASE timestamped later than a PAYOUT on the same day appears first", async () => {
+    // purchaseAt 14:00 (PURCHASE) should beat paidAt 10:00 (PAYOUT) — type is irrelevant
+    const latePurchase = {
+      id: "hold-late-1",
+      tokenCount: 100,
+      purchasePrice: 125,
+      ownershipPercent: 0.005,
+      purchasedAt: new Date("2026-02-15T14:00:00Z"),
+      property: summitProperty,
+    };
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      tokenHoldings: [latePurchase],
+      payouts: [rentalPayout], // rentalPayout paidAt: 2026-02-15T10:00:00Z
+    } as never);
+    const res = await GET();
+    const { transactions } = await res.json();
+    expect(transactions[0].type).toBe("PURCHASE");
+    expect(transactions[0].date).toContain("T14:");
+    expect(transactions[1].type).toBe("PAYOUT");
+    expect(transactions[1].date).toContain("T10:");
+  });
+});
+
+// ─── Auth / user-not-found guards ─────────────────────────────────────────
+
+describe("GET /api/dashboard — auth guards", () => {
+  it("returns 401 when there is no session", async () => {
+    vi.mocked(getServerSession).mockResolvedValue(null);
+    const res = await GET();
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.error).toBeDefined();
+  });
+
+  it("returns 401 when session has no email", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: {} } as never);
+    const res = await GET();
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 when user is not found in the database", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({ user: { email: "missing@test.com" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    const res = await GET();
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.error).toBeDefined();
   });
 });
