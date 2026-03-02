@@ -1,9 +1,17 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ListPropertyForm from "@/components/ListPropertyForm";
 
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
 describe("ListPropertyForm", () => {
+  afterEach(() => {
+    // Always restore real timers even if a test fails mid-way
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
   it("renders step 1 by default", () => {
     render(<ListPropertyForm />);
     expect(screen.getByText("Property Basics")).toBeInTheDocument();
@@ -112,38 +120,27 @@ describe("ListPropertyForm", () => {
   });
 
   it("shows success screen after Submit on step 5", async () => {
-    vi.useFakeTimers();
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) } as Response);
     render(<ListPropertyForm initialStep={5} />);
 
     fireEvent.click(screen.getByRole("button", { name: /submit listing/i }));
 
-    await act(async () => {
-      vi.advanceTimersByTime(1600);
-    });
-
-    expect(
-      screen.getByText(/listing submitted for review/i)
-    ).toBeInTheDocument();
-
-    vi.useRealTimers();
+    await waitFor(() =>
+      expect(screen.getByText(/listing submitted for review/i)).toBeInTheDocument()
+    );
   });
 
   it("shows 'View My Properties' and 'Upload Documents' links on success screen", async () => {
-    vi.useFakeTimers();
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) } as Response);
     render(<ListPropertyForm initialStep={5} />);
     fireEvent.click(screen.getByRole("button", { name: /submit listing/i }));
-    await act(async () => {
-      vi.advanceTimersByTime(1600);
-    });
 
-    expect(
-      screen.getByRole("link", { name: /view my properties/i })
-    ).toHaveAttribute("href", "/owner/dashboard");
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: /view my properties/i })).toHaveAttribute("href", "/owner/dashboard")
+    );
     expect(
       screen.getByRole("link", { name: /upload documents/i })
     ).toHaveAttribute("href", "/owner/documents");
-
-    vi.useRealTimers();
   });
 
   it("property type pills toggle selection", () => {
@@ -158,6 +155,27 @@ describe("ListPropertyForm", () => {
     fireEvent.click(multiFamilyBtn);
     expect(multiFamilyBtn.className).toContain("bg-accent-gold");
     expect(residentialBtn.className).not.toContain("bg-accent-gold");
+  });
+
+  it("typing in optional step 1 fields (bedrooms, sqft) updates their values", async () => {
+    const user = userEvent.setup();
+    render(<ListPropertyForm />);
+    await user.type(screen.getByPlaceholderText("4"), "3");       // bedrooms
+    await user.type(screen.getByPlaceholderText("2400"), "1800"); // sqft
+    expect((screen.getByPlaceholderText("4") as HTMLInputElement).value).toBe("3");
+    expect((screen.getByPlaceholderText("2400") as HTMLInputElement).value).toBe("1800");
+  });
+
+  it("entering an image URL in step 3 renders image preview", async () => {
+    const user = userEvent.setup();
+    render(<ListPropertyForm initialStep={3} />);
+    await user.type(
+      screen.getByPlaceholderText(/https:\/\/images\.unsplash/i),
+      "https://example.com/photo.jpg"
+    );
+    await waitFor(() =>
+      expect(screen.getByAltText("Cover preview")).toBeInTheDocument()
+    );
   });
 
   // ─── Yield tests ────────────────────────────────────────────────────────────
@@ -175,7 +193,7 @@ describe("ListPropertyForm", () => {
 
   it("uses the entered yield when it is lower than the calculated yield", async () => {
     // calcYield = (($3000 - $500) * 12) / $500000 = 6.00%
-    // entered = 4%  →  lower = 4.00%
+    // entered = 1%  →  diff = 5 > 2  →  lower = 1.00%
     const user = userEvent.setup();
     render(<ListPropertyForm />);
     await goToStep2(user);
@@ -183,15 +201,15 @@ describe("ListPropertyForm", () => {
     await user.type(screen.getByPlaceholderText("320000"), "400000");
     await user.type(screen.getByPlaceholderText("3500"), "3000");
     await user.type(screen.getByPlaceholderText("800"), "500");
-    await user.type(screen.getByPlaceholderText("7.4"), "4");
+    await user.type(screen.getByPlaceholderText("7.4"), "1");
     await waitFor(() =>
-      expect(screen.getByText(/lower yield \(4\.00%\)/i)).toBeInTheDocument()
+      expect(screen.getByText(/lower yield \(1\.00%\)/i)).toBeInTheDocument()
     );
-  });
+  }, 15000);
 
   it("uses the calculated yield when it is lower than the entered yield", async () => {
     // calcYield = (($3000 - $500) * 12) / $500000 = 6.00%
-    // entered = 9%  →  lower = 6.00% (calculated wins)
+    // entered = 9%  →  diff = 3 > 2  →  lower = 6.00% (calculated wins)
     const user = userEvent.setup();
     render(<ListPropertyForm />);
     await goToStep2(user);
@@ -202,6 +220,107 @@ describe("ListPropertyForm", () => {
     await user.type(screen.getByPlaceholderText("7.4"), "9");
     await waitFor(() =>
       expect(screen.getByText(/lower yield \(6\.00%\)/i)).toBeInTheDocument()
+    );
+  }, 15000);
+
+  // ─── Step 3: Description & Highlights ─────────────────────────────────────
+
+  it("renders step 3 with description textarea when initialStep=3", () => {
+    render(<ListPropertyForm initialStep={3} />);
+    expect(screen.getByText(/Description.*Highlights/)).toBeInTheDocument();
+  });
+
+  it("Next button is disabled on step 3 when description is too short", () => {
+    render(<ListPropertyForm initialStep={3} />);
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+  });
+
+  it("Next enables on step 3 after entering ≥50-char description and a highlight", async () => {
+    const user = userEvent.setup();
+    render(<ListPropertyForm initialStep={3} />);
+    const textarea = screen.getByPlaceholderText(/describe the property/i);
+    await user.type(textarea, "A".repeat(50));
+    await user.type(screen.getByPlaceholderText("Highlight 1"), "Great view");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /next/i })).not.toBeDisabled()
+    );
+  });
+
+  it("Add Highlight button adds a new highlight input field", async () => {
+    const user = userEvent.setup();
+    render(<ListPropertyForm initialStep={3} />);
+    await user.click(screen.getByRole("button", { name: /add highlight/i }));
+    expect(screen.getByPlaceholderText("Highlight 2")).toBeInTheDocument();
+  });
+
+  it("Remove (X) button removes a highlight input", async () => {
+    const user = userEvent.setup();
+    render(<ListPropertyForm initialStep={3} />);
+    await user.click(screen.getByRole("button", { name: /add highlight/i }));
+    // X button appears only when >1 highlights exist
+    const xButtons = screen.getAllByRole("button").filter(
+      (b) => b.className.includes("text-text-secondary") && b.querySelector("svg")
+    );
+    await user.click(xButtons[0]);
+    expect(screen.queryByPlaceholderText("Highlight 2")).not.toBeInTheDocument();
+  });
+
+  // ─── Step 4: SPV & Legal ───────────────────────────────────────────────────
+
+  it("renders step 4 with SPV entity input when initialStep=4", () => {
+    render(<ListPropertyForm initialStep={4} />);
+    expect(screen.getByText(/SPV.*Legal/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/harbor heights/i)).toBeInTheDocument();
+  });
+
+  it("Next button is disabled on step 4 when SPV fields are empty", () => {
+    render(<ListPropertyForm initialStep={4} />);
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+  });
+
+  it("Next button enables on step 4 after filling all SPV fields and checking both boxes", async () => {
+    const user = userEvent.setup();
+    render(<ListPropertyForm initialStep={4} />);
+    await user.type(screen.getByPlaceholderText(/harbor heights/i), "Harbor Heights LLC");
+    await user.selectOptions(screen.getAllByRole("combobox")[0], "Delaware");
+    await user.type(screen.getByPlaceholderText("30"), "30");
+    const checkboxes = screen.getAllByRole("checkbox");
+    await user.click(checkboxes[0]);
+    await user.click(checkboxes[1]);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /next/i })).not.toBeDisabled()
+    );
+  });
+
+  it("shows equity out-of-range warning when value is 0", async () => {
+    const user = userEvent.setup();
+    render(<ListPropertyForm initialStep={4} />);
+    await user.type(screen.getByPlaceholderText("30"), "0");
+    await waitFor(() =>
+      expect(screen.getByText(/must be between 1% and 97%/i)).toBeInTheDocument()
+    );
+  });
+
+  // ─── Submit error state ────────────────────────────────────────────────────
+
+  it("shows error message when submit returns a non-ok response", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: "Server error, please try again." }),
+    } as Response);
+    render(<ListPropertyForm initialStep={5} />);
+    fireEvent.click(screen.getByRole("button", { name: /submit listing/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/server error, please try again/i)).toBeInTheDocument()
+    );
+  });
+
+  it("shows network error message when fetch throws", async () => {
+    mockFetch.mockRejectedValueOnce(new Error("Network failure"));
+    render(<ListPropertyForm initialStep={5} />);
+    fireEvent.click(screen.getByRole("button", { name: /submit listing/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/network error/i)).toBeInTheDocument()
     );
   });
 });

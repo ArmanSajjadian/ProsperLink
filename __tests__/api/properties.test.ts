@@ -9,6 +9,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     user: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));
@@ -130,13 +131,18 @@ describe("POST /api/properties", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 403 when user role is INVESTOR", async () => {
+  it("upgrades INVESTOR role to BOTH and returns 201", async () => {
+    const investorUser = { ...ownerUser, id: "user-investor-1", email: "investor@test.com", role: "INVESTOR" };
     vi.mocked(getServerSession).mockResolvedValue({
       user: { email: "investor@test.com" },
     } as never);
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({
-      ...ownerUser,
-      role: "INVESTOR",
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(investorUser as never);
+    vi.mocked(prisma.property.create).mockResolvedValue({
+      id: "new-test-property",
+      slug: "new-test-property",
+      status: "REVIEW",
+      ownerId: investorUser.id,
+      createdAt: new Date(),
     } as never);
 
     const req = new Request("http://localhost/api/properties", {
@@ -146,7 +152,10 @@ describe("POST /api/properties", () => {
     });
     const res = await POST(req);
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { role: "BOTH" } })
+    );
   });
 
   it("returns 400 when required fields are missing", async () => {
@@ -165,7 +174,7 @@ describe("POST /api/properties", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 201 and creates property with DRAFT status for valid OWNER", async () => {
+  it("returns 201 and creates property with REVIEW status for valid OWNER", async () => {
     vi.mocked(getServerSession).mockResolvedValue({
       user: { email: "owner@test.com" },
     } as never);
@@ -174,7 +183,7 @@ describe("POST /api/properties", () => {
       id: "new-test-property",
       slug: "new-test-property",
       ...validBody,
-      status: "DRAFT",
+      status: "REVIEW",
       fundedAmount: 0,
       ownerId: ownerUser.id,
       createdAt: new Date(),
@@ -194,7 +203,7 @@ describe("POST /api/properties", () => {
     expect(data.slug).toBeDefined();
   });
 
-  it("creates property with status DRAFT and correct ownerId", async () => {
+  it("creates property with status REVIEW and correct ownerId", async () => {
     vi.mocked(getServerSession).mockResolvedValue({
       user: { email: "owner@test.com" },
     } as never);
@@ -202,7 +211,7 @@ describe("POST /api/properties", () => {
     vi.mocked(prisma.property.create).mockResolvedValue({
       id: "new-test-property",
       slug: "new-test-property",
-      status: "DRAFT",
+      status: "REVIEW",
       ownerId: ownerUser.id,
       createdAt: new Date(),
     } as never);
@@ -217,8 +226,92 @@ describe("POST /api/properties", () => {
     expect(prisma.property.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: "DRAFT",
+          status: "REVIEW",
           ownerId: ownerUser.id,
+        }),
+      })
+    );
+  });
+
+  it("returns 500 when property.create throws a database error", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({
+      user: { email: "owner@test.com" },
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(ownerUser as never);
+    vi.mocked(prisma.property.create).mockRejectedValue(new Error("DB failure"));
+
+    const req = new Request("http://localhost/api/properties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validBody),
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toBeDefined();
+  });
+
+  it("returns 404 when the authenticated user is not found in the database", async () => {
+    vi.mocked(getServerSession).mockResolvedValue({
+      user: { email: "ghost@test.com" },
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+
+    const req = new Request("http://localhost/api/properties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validBody),
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("applies default values for optional fields when omitted from the request body", async () => {
+    // Omit type, imageUrl, targetRaise, annualYield, highlights, bedrooms, bathrooms, sqft,
+    // yearBuilt, spvEntity, jurisdiction — covers all the ?? and ternary fallback branches.
+    vi.mocked(getServerSession).mockResolvedValue({
+      user: { email: "owner@test.com" },
+    } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(ownerUser as never);
+    vi.mocked(prisma.property.create).mockResolvedValue({
+      id: "minimal-property",
+      slug: "minimal-property",
+      status: "REVIEW",
+      ownerId: ownerUser.id,
+      createdAt: new Date(),
+    } as never);
+
+    const minimalBody = {
+      name: "Minimal Property",
+      description: "A minimal test property listing",
+      address: "1 Test Ave",
+      city: "Miami",
+      state: "FL",
+      totalValue: 200000,
+    };
+
+    const req = new Request("http://localhost/api/properties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(minimalBody),
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(201);
+    expect(prisma.property.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "Residential",
+          imageUrl: "",
+          spvEntity: "",
+          jurisdiction: "",
+          highlights: [],
+          bedrooms: null,
+          bathrooms: null,
+          sqft: null,
+          yearBuilt: null,
         }),
       })
     );
