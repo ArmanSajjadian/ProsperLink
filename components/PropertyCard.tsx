@@ -8,12 +8,14 @@ interface PropertyCardProps {
 }
 
 const statusColors: Record<string, string> = {
+  REVIEW: "text-blue-400 bg-blue-400/10",
   FUNDING: "text-accent-gold bg-accent-gold/10",
   FUNDED: "text-success bg-success/10",
   ACTIVE: "text-success bg-success/10",
 };
 
 const statusLabels: Record<string, string> = {
+  REVIEW: "Coming Soon",
   FUNDING: "Funding Open",
   FUNDED: "Fully Funded",
   ACTIVE: "Earning",
