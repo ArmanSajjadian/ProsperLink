@@ -19,6 +19,7 @@ interface Props {
 }
 
 const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
+  REVIEW:  { bg: "bg-blue-400/10",    text: "text-blue-400",    label: "In Review" },
   FUNDING: { bg: "bg-accent-gold/10", text: "text-accent-gold", label: "Funding Open" },
   FUNDED:  { bg: "bg-success/10",     text: "text-success",     label: "Fully Funded" },
   ACTIVE:  { bg: "bg-success/10",     text: "text-success",     label: "Earning Income" },

@@ -78,7 +78,8 @@ model Property {
   tokenPrice    Float
   annualYield   Float
   fundedAmount  Float          @default(0)
-  status        String         @default("FUNDING") // DRAFT|FUNDING|FUNDED|ACTIVE|CLOSED
+  status        String         @default("FUNDING") // DRAFT|REVIEW|FUNDING|FUNDED|ACTIVE|CLOSED
+  adminComment  String?
   spvEntity     String
   jurisdiction  String
   contractAddr  String?
@@ -122,13 +123,16 @@ model Payout {
 }
 
 model Document {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   propertyId String
   uploaderId String
   name       String
-  category   String   // FINANCIAL | LEGAL | PROPERTY | COMPLIANCE
+  category   String    // FINANCIAL | LEGAL | PROPERTY | COMPLIANCE
   url        String
-  createdAt  DateTime @default(now())
-  property   Property @relation(fields: [propertyId], references: [id])
-  uploader   User     @relation(fields: [uploaderId], references: [id])
+  status     String    @default("PENDING_REVIEW") // PENDING_REVIEW | APPROVED | REJECTED | DRAFT
+  reviewNote String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+  property   Property  @relation(fields: [propertyId], references: [id])
+  uploader   User      @relation(fields: [uploaderId], references: [id])
 }

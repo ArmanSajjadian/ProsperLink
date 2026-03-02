@@ -19,11 +19,21 @@ export default function InvestModal({ property, walletBalance, onClose }: Invest
   const { data: session } = useSession();
   const router = useRouter();
   const [step, setStep] = useState<Step>("amount");
-  const [amount, setAmount] = useState(100);
+  const [rawAmount, setRawAmount] = useState("100");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const tokenCount = Math.floor(amount / property.tokenPrice);
+  const numericAmount = parseFloat(rawAmount) || 0;
+  const remainingCap = property.totalValue - property.fundedAmount;
+
+  let inputError = "";
+  if (rawAmount === "" || numericAmount < 1) {
+    inputError = "Minimum investment is $1.";
+  } else if (numericAmount > remainingCap) {
+    inputError = `Amount exceeds the remaining cap of $${remainingCap.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
+  }
+
+  const tokenCount = Math.floor(numericAmount / property.tokenPrice);
   const actualCost = tokenCount * property.tokenPrice;
   const ownershipPercent = (tokenCount / property.totalTokens) * 100;
   const monthlyIncome = (actualCost * (property.annualYield / 100)) / 12;
@@ -86,20 +96,24 @@ export default function InvestModal({ property, walletBalance, onClose }: Invest
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm">$</span>
                 <input
                   type="number"
-                  min={property.tokenPrice}
-                  step={property.tokenPrice}
-                  value={amount}
-                  onChange={(e) => setAmount(Math.max(property.tokenPrice, Number(e.target.value)))}
-                  className="w-full bg-primary-dark border border-border-card rounded-lg pl-7 pr-4 py-3 text-lg font-bold text-white focus:outline-none focus:border-accent-gold/50 transition-colors"
+                  value={rawAmount}
+                  onChange={(e) => setRawAmount(e.target.value)}
+                  className={`w-full bg-primary-dark border rounded-lg pl-7 pr-4 py-3 text-lg font-bold text-white focus:outline-none focus:border-accent-gold/50 transition-colors ${inputError ? "border-red-500" : "border-border-card"}`}
                 />
               </div>
+              {inputError && (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <AlertCircle size={12} className="text-red-400 flex-shrink-0" />
+                  <p className="text-red-400 text-xs">{inputError}</p>
+                </div>
+              )}
               <div className="flex gap-2 mt-2">
                 {presets.map((p) => (
                   <button
                     key={p}
-                    onClick={() => setAmount(p)}
+                    onClick={() => setRawAmount(String(p))}
                     className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      amount === p
+                      numericAmount === p
                         ? "bg-accent-gold text-primary-dark"
                         : "bg-primary-dark border border-border-card text-text-secondary hover:text-white"
                     }`}
@@ -152,7 +166,7 @@ export default function InvestModal({ property, walletBalance, onClose }: Invest
 
             <button
               onClick={() => setStep("review")}
-              disabled={tokenCount === 0 || !!insufficientFunds}
+              disabled={tokenCount === 0 || !!insufficientFunds || !!inputError}
               className="w-full bg-accent-gold hover:bg-accent-gold-hover disabled:opacity-50 text-primary-dark font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               Review Investment <ArrowRight size={16} />

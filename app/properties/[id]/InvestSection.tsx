@@ -129,10 +129,10 @@ export default function InvestSection({ property }: InvestSectionProps) {
               </Link>
             </div>
           ) : property.status === "REVIEW" ? (
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-              <p className="text-text-secondary font-semibold">Under Review</p>
+            <div className="bg-blue-400/10 border border-blue-400/20 rounded-lg p-4 text-center">
+              <p className="text-blue-400 font-semibold">In Review — Coming Soon</p>
               <p className="text-text-secondary text-xs mt-1">
-                This property is under review
+                This property is under review and will open for investment soon.
               </p>
             </div>
           ) : (
