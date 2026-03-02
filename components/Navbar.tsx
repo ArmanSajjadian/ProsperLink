@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, X, LayoutDashboard, Building2, LogOut, ChevronDown, Wallet } from "lucide-react";
+import { Menu, X, LayoutDashboard, Building2, LogOut, ChevronDown, Wallet, ShieldCheck } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
+import { isAdminEmail } from "@/lib/admin";
 
 const navLinks = [
   { href: "/properties", label: "Properties" },
@@ -83,6 +84,15 @@ export default function Navbar() {
                     >
                       <Wallet size={15} /> My Wallet
                     </Link>
+                    {isAdminEmail(session.user?.email) && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-accent-gold hover:text-white hover:bg-primary-navy transition-colors"
+                      >
+                        <ShieldCheck size={15} /> Admin Panel
+                      </Link>
+                    )}
                     <div className="h-px bg-border-card my-1" />
                     <button
                       onClick={() => { setUserMenuOpen(false); signOut({ callbackUrl: "/" }); }}
@@ -163,6 +173,15 @@ export default function Navbar() {
                 >
                   <Wallet size={15} /> My Wallet
                 </Link>
+                {isAdminEmail(session.user?.email) && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-medium text-accent-gold py-2 flex items-center gap-2"
+                  >
+                    <ShieldCheck size={15} /> Admin Panel
+                  </Link>
+                )}
                 <button
                   onClick={() => { setMobileOpen(false); signOut({ callbackUrl: "/" }); }}
                   className="text-sm font-medium text-text-secondary py-2 text-left flex items-center gap-2"

@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { AlertCircle, FileText } from "lucide-react";
 import DocumentRow from "@/components/DocumentRow";
 import DocumentUploadZone from "@/components/DocumentUploadZone";
@@ -15,6 +14,36 @@ import {
   type OwnerDocument,
   type DocumentCategory,
 } from "@/lib/mockOwner";
+
+interface DbDocument {
+  id: string;
+  propertyId: string;
+  name: string;
+  category: string;
+  url: string;
+  status: string;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+function dbDocToOwnerDoc(doc: DbDocument): OwnerDocument {
+  const ext = (doc.url.split(".").pop()?.toUpperCase() ?? "PDF") as OwnerDocument["fileType"];
+  const validTypes = ["PDF", "DOCX", "XLSX", "JPG", "PNG"];
+  return {
+    id: doc.id,
+    propertyId: doc.propertyId,
+    fileName: doc.name,
+    fileType: validTypes.includes(ext) ? (ext as OwnerDocument["fileType"]) : "PDF",
+    fileSizeKb: 0,
+    category: doc.category as DocumentCategory,
+    status: doc.status as OwnerDocument["status"],
+    uploadedAt: doc.createdAt.split("T")[0],
+    reviewedAt: doc.reviewedAt ?? undefined,
+    reviewNote: doc.reviewNote ?? undefined,
+    fileUrl: doc.url,
+  };
+}
 
 type CategoryFilter = "ALL" | DocumentCategory;
 
@@ -35,6 +64,7 @@ export default function DocumentsPage() {
   );
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
   const [localDocs, setLocalDocs] = useState<OwnerDocument[]>([]);
+  const [dbDocs, setDbDocs] = useState<OwnerDocument[]>([]);
 
   // Derived values — computed unconditionally so hooks are never called conditionally
   const propertyDocs = useMemo(
@@ -53,9 +83,27 @@ export default function DocumentsPage() {
     [propertyDocs, categoryFilter]
   );
 
+  // Documents requiring attention from the real DB (admin reviewed)
+  const dbDocsNeedingAction = useMemo(
+    () => dbDocs.filter((d) => d.status === "REJECTED"),
+    [dbDocs]
+  );
+
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/owner/documents")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.documents) {
+          setDbDocs(data.documents.map(dbDocToOwnerDoc));
+        }
+      })
+      .catch(() => {/* silently ignore — DB may be empty */});
+  }, [status]);
 
   if (status === "loading") return <Spinner />;
   if (!session) return null;
@@ -123,7 +171,7 @@ export default function DocumentsPage() {
         </p>
       </div>
 
-      {/* Attention banner */}
+      {/* Attention banner — mock data */}
       {ownerStats.documentsNeedingAction > 0 && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-card p-4 flex items-center gap-3">
           <AlertCircle size={18} className="text-red-400 flex-shrink-0" />
@@ -135,6 +183,56 @@ export default function DocumentsPage() {
             </span>{" "}
             across your listings. Review the rejection notes below and re-upload.
           </p>
+        </div>
+      )}
+
+      {/* Platform document reviews from DB — shown when admin has reviewed real uploads */}
+      {dbDocsNeedingAction.length > 0 && (
+        <div className="space-y-2">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-card p-4 flex items-center gap-3">
+            <AlertCircle size={18} className="text-red-400 flex-shrink-0" />
+            <p className="text-red-400 text-sm">
+              <span className="font-semibold">
+                {dbDocsNeedingAction.length} document
+                {dbDocsNeedingAction.length > 1 ? "s require" : " requires"}{" "}
+                resubmission
+              </span>{" "}
+              — the platform has reviewed and flagged the documents below.
+            </p>
+          </div>
+          <div className="bg-surface-card border border-red-500/20 rounded-card overflow-hidden">
+            <div className="divide-y divide-border-card">
+              {dbDocsNeedingAction.map((doc) => (
+                <DocumentRow
+                  key={doc.id}
+                  document={doc}
+                  onPreview={handlePreview}
+                  onDownload={handleDownload}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* All platform documents */}
+      {dbDocs.length > 0 && dbDocsNeedingAction.length === 0 && (
+        <div className="bg-surface-card border border-border-card rounded-card overflow-hidden">
+          <div className="px-5 py-3 bg-primary-navy border-b border-border-card">
+            <h2 className="text-text-secondary text-xs font-medium uppercase tracking-wide">
+              Platform Documents ({dbDocs.length})
+            </h2>
+          </div>
+          <div className="divide-y divide-border-card">
+            {dbDocs.map((doc) => (
+              <DocumentRow
+                key={doc.id}
+                document={doc}
+                onPreview={handlePreview}
+                onDownload={handleDownload}
+              />
+            ))}
+          </div>
         </div>
       )}
 
